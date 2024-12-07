@@ -9,7 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@upstash/redis": "^1.34.3",
     "groq-sdk": "^0.9.0",
+    "ioredis": "^5.4.1",
     "next": "15.0.4",
     "openai": "^4.76.0",
     "react": "^19.0.0",

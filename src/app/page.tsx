@@ -13,9 +13,14 @@ export default function Home() {
     { role: 'ai', content: 'Hello! How can I help you today?' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [rateLimitError, setRateLimitError] = useState(false);
+  const [retryAfter, setRetryAfter] = useState(0);
 
   const handleSend = async () => {
     if (!message.trim()) return;
+
+    // Reset rate limit error
+    setRateLimitError(false);
 
     // Add user message to the conversation
     const userMessage = { role: 'user' as const, content: message };
@@ -32,15 +37,24 @@ export default function Home() {
         body: JSON.stringify({ message }),
       });
 
-      const data = await response.json();
-      
-      if (!response.ok) throw new Error(data.error);
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '20');
+        console.log('Rate limit hit:', { retryAfter });
+        setRateLimitError(true);
+        setRetryAfter(retryAfter);
+        return;
+      }
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
       // Add AI response to the conversation
       setMessages(prev => [...prev, { role: 'ai', content: data.reply }]);
     } catch (error) {
       console.error('Error:', error);
-      // Optionally show error to user
+      setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, there was an error processing your request.' }]);
     } finally {
       setIsLoading(false);
     }
@@ -54,6 +68,15 @@ export default function Home() {
           <h1 className="text-xl font-semibold text-white">Groq Chat</h1>
         </div>
       </div>
+
+      {/* Rate Limit Error Banner */}
+      {rateLimitError && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white p-4 shadow-lg">
+          <div className="max-w-3xl mx-auto flex items-center justify-between">
+            <p className="text-lg font-medium">You've exceeded the message limit. Please wait {retryAfter} seconds before sending another message.</p>
+          </div>
+        </div>
+      )}
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto pb-32 pt-4">
