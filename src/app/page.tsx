@@ -2,6 +2,10 @@
 
 import React, { useState, useRef, KeyboardEvent, Fragment } from "react";
 import "../styles/animations.css";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 type Message = {
   role: "user" | "ai";
@@ -117,7 +121,10 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: messageContent }),
+        body: JSON.stringify({
+          message: messageContent,
+          messages: messages,
+        }),
       });
 
       if (response.status === 429) {
@@ -212,30 +219,86 @@ export default function Home() {
                   msg.role === "ai"
                     ? "bg-[#444654] text-white"
                     : "bg-gray-100 text-black ml-auto"
-                }`}
+                } overflow-hidden`}
               >
-                {detectURLs(msg.content).map((segment, i) => (
-                  <React.Fragment key={i}>
-                    {segment.type === "url" ? (
-                      <a
-                        href={segment.content}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`inline-block px-2 py-0.5 rounded hover:opacity-80 transition-opacity ${
-                          msg.role === "ai"
-                            ? "bg-[#565869] text-blue-300"
-                            : "bg-blue-100 text-blue-800"
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  className={`prose max-w-none break-words ${
+                    msg.role === "ai" ? "prose-invert" : "prose-neutral"
+                  }`}
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || "");
+                      return !inline && match ? (
+                        <div className="max-w-full overflow-x-auto my-4 rounded-lg">
+                          <div className="flex items-center justify-between bg-[#1e1e1e] px-4 py-2 rounded-t-lg border-b border-[#333]">
+                            <span className="text-xs text-gray-400">
+                              {match[1]}
+                            </span>
+                            <div className="flex gap-1.5">
+                              <div className="w-3 h-3 rounded-full bg-[#ff5f56]" />
+                              <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
+                              <div className="w-3 h-3 rounded-full bg-[#27c93f]" />
+                            </div>
+                          </div>
+                          <SyntaxHighlighter
+                            style={vscDarkPlus}
+                            language={match[1]}
+                            PreTag="div"
+                            customStyle={{
+                              margin: 0,
+                              borderRadius: "0 0 0.5rem 0.5rem",
+                              padding: "1rem 1.25rem",
+                              fontSize: "0.875rem",
+                              lineHeight: "1.5",
+                              backgroundColor: "#1e1e1e",
+                            }}
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, "")}
+                          </SyntaxHighlighter>
+                        </div>
+                      ) : (
+                        <code
+                          className={`${className} text-sm px-1.5 py-0.5 rounded ${
+                            msg.role === "ai" ? "bg-[#2d2d2d]" : "bg-gray-200"
+                          }`}
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      );
+                    },
+                    p: ({ children }) => (
+                      <p
+                        className={`mb-2 last:mb-0 whitespace-pre-wrap break-words ${
+                          msg.role === "ai" ? "text-white" : "text-gray-900"
                         }`}
                       >
-                        {segment.content}
+                        {children}
+                      </p>
+                    ),
+                    pre: ({ children }) => (
+                      <pre className="max-w-full overflow-x-auto">
+                        {children}
+                      </pre>
+                    ),
+                    a: ({ children, href }) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`hover:underline break-all ${
+                          msg.role === "ai" ? "text-blue-400" : "text-blue-600"
+                        }`}
+                      >
+                        {children}
                       </a>
-                    ) : (
-                      <span className="whitespace-pre-wrap">
-                        {segment.content}
-                      </span>
-                    )}
-                  </React.Fragment>
-                ))}
+                    ),
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
               </div>
             </div>
           ))}

@@ -111,11 +111,18 @@ async function scrapeUrl(url: string) {
   }
 }
 
+// Add type for the chat message
+type ChatMessage = {
+  role: "user" | "ai";
+  content: string;
+};
+
 export async function POST(req: Request) {
   try {
-    const { message } = await req.json();
+    const { message, messages = [] } = await req.json();
 
-    console.log("message", message);
+    // console.log("Current message:", message);
+    console.log("Message history:", messages);
 
     // Extract URLs from the message
     const urls = message.match(urlPattern) || [];
@@ -128,35 +135,44 @@ export async function POST(req: Request) {
 
     console.log("scrapedResults", scrapedResults);
 
-    let systemPrompt =
-      "You are an expert at answering questions I have in a clear and concise manner.";
+    let userPrompt = `Here is my question: "${message}".`;
 
     if (scrapedResults.length > 0) {
-      systemPrompt = `You are an expert at analyzing information from webpages and providing answers from them. Here is the context from the URLs:\n${scrapedResults
+      userPrompt += `\n\nHere is the information from the URLs:\n${scrapedResults
         .map(
           result =>
             `URL: ${result.url}\n` +
             `Title: ${result.title}\n` +
-            `H1: ${result.headings.h1}\n` +
-            `H2: ${result.headings.h2}\n` +
             `Description: ${result.metaDescription}\n` +
             `Content: ${result.content}\n---`
         )
-        .join("\n")}`;
+        .join("\n")}.\n Make sure your outputs are in valid markdown format.`;
     }
+
+    // Convert frontend messages to Groq format
+    const chatHistory = messages.map((msg: ChatMessage) => ({
+      role: msg.role === "ai" ? "assistant" : "user",
+      content: msg.content,
+    }));
+
+    const groqMessages = [
+      {
+        role: "system",
+        content:
+          "You are an expert at answering questions in a clear and concise manner. Always make sure your responses are in valid markdown format.",
+      },
+      ...chatHistory,
+      {
+        role: "user",
+        content: userPrompt,
+      },
+    ];
+
+    console.log("groqMessages", groqMessages);
 
     const completion = await groq.chat.completions.create({
       model: "llama3-8b-8192",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: `Here is my question: "${message}".`,
-        },
-      ],
+      messages: groqMessages,
     });
 
     const reply = completion.choices[0].message.content;
