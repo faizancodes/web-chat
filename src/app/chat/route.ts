@@ -13,6 +13,55 @@ type ChatMessage = {
   content: string;
 };
 
+const MODELS: string[] = [
+    "llama-3.1-8b-instant",
+    "llama3-70b-8192",
+    "llama3-8b-8192",
+    "gemma2-9b-it",
+    "gemma-7b-it",
+  ];
+
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 500;
+
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function attemptCompletion(messages: any[], currentModel: string, retryCount = 0): Promise<string> {
+  try {
+    console.log(`Attempting completion with model: ${currentModel}, retry: ${retryCount}`);
+    const completion = await groq.chat.completions.create({
+      model: currentModel,
+      messages: messages,
+    });
+    if (!completion.choices[0].message.content) {
+      throw new Error("Empty response from model");
+    }
+    return completion.choices[0].message.content;
+  } catch (error: any) {
+    console.error(`Error with model ${currentModel}:`, error.message);
+    
+    // If we haven't exceeded retries for current model, retry with exponential backoff
+    if (retryCount < MAX_RETRIES) {
+      const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
+      console.log(`Retrying with ${currentModel} after ${delay}ms...`);
+      await sleep(delay);
+      return attemptCompletion(messages, currentModel, retryCount + 1);
+    }
+    
+    // If we've exhausted retries, try next model
+    const currentModelIndex = MODELS.indexOf(currentModel);
+    if (currentModelIndex < MODELS.length - 1) {
+      console.log(`Falling back to next model: ${MODELS[currentModelIndex + 1]}`);
+      return attemptCompletion(messages, MODELS[currentModelIndex + 1], 0);
+    }
+    
+    throw new Error("All models and retries exhausted");
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { message, messages = [] } = await req.json();
@@ -65,12 +114,8 @@ export async function POST(req: Request) {
 
     console.log("groqMessages", groqMessages);
 
-    const completion = await groq.chat.completions.create({
-      model: "llama3-8b-8192",
-      messages: groqMessages,
-    });
-
-    const reply = completion.choices[0].message.content;
+    // Attempt completion with retries and fallbacks
+    const reply = await attemptCompletion(groqMessages, MODELS[0], 0);
 
     return NextResponse.json({
       reply,
