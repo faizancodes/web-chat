@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       {
         role: "system",
         content:
-          "You are an expert at answering questions in a clear and concise manner. Always make sure your responses are in valid markdown format.",
+          "You are an expert at answering questions in a clear and concise manner. Always make sure your responses are in valid markdown format. Don't ever say 'Here is the answer in markdown format:' or anything like that. Just give the answer.",
       },
       ...chatHistory,
       {

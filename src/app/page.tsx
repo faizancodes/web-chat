@@ -88,6 +88,20 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [rateLimitError, setRateLimitError] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
+  const [initialChips] = useState([
+    {
+      text: "Summarize this article",
+      url: "https://www.cnbc.com/2024/12/07/the-fed-is-on-course-to-cut-interest-rates-in-december-but-what-happens-next-is-anyones-guess.html",
+    },
+    {
+      text: "What is ChatGPT Pro?",
+      url: "https://openai.com/index/introducing-chatgpt-pro/",
+    },
+    {
+      text: "Tell me about the new Gemini model",
+      url: "https://workspace.google.com/blog/product-announcements/new-gemini-gems-deeper-knowledge-and-business-context",
+    },
+  ]);
   const inputRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -118,13 +132,20 @@ export default function Home() {
       .map(segment => segment.content)
       .join(" ");
 
+    await sendMessage(messageContent);
+  };
+
+  const sendMessage = async (messageContent: string) => {
     // Add user message to the conversation
     const userMessage = { role: "user" as const, content: messageContent };
     setMessages(prev => [...prev, userMessage]);
 
-    // Clear the input
-    inputRef.current.innerHTML = "";
-    setMessage("");
+    // Clear the input if it exists
+    if (inputRef.current) {
+      inputRef.current.innerHTML = "";
+      setMessage("");
+    }
+
     setIsLoading(true);
 
     try {
@@ -170,6 +191,15 @@ export default function Home() {
     }
   };
 
+  const handleChipClick = async (
+    e: React.MouseEvent,
+    chip: { text: string; url: string }
+  ) => {
+    e.preventDefault();
+    const messageContent = `${chip.text} ${chip.url}`;
+    await sendMessage(messageContent);
+  };
+
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     const content = e.currentTarget.textContent || "";
     setMessage(content);
@@ -185,9 +215,30 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-[#343541]">
       {/* Header */}
-      <div className="w-full bg-[#343541] border-b border-gray-600 p-4">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-xl font-semibold text-white">Web Chat</h1>
+      <div className="w-full bg-gradient-to-r from-[#2a2b38] via-[#343541] to-[#2a2b38] border-b border-gray-600 p-4 shadow-lg">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center transform hover:rotate-12 transition-transform duration-300">
+              <svg
+                className="w-5 h-5 text-white"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-wide hover:text-blue-400 transition-colors duration-300">
+                Web Chat
+              </h1>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -366,6 +417,21 @@ export default function Home() {
       {/* Input Area */}
       <div className="fixed bottom-0 w-full bg-[#343541] border-t border-gray-600 p-4">
         <div className="max-w-3xl mx-auto">
+          {/* Chips */}
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {initialChips.map((chip, index) => (
+              <a
+                key={index}
+                href={chip.url}
+                onClick={e => handleChipClick(e, chip)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-[#40414f] text-blue-400 px-3 py-1.5 rounded-full text-sm hover:bg-[#4a4b59] transition-colors border border-gray-600 cursor-pointer"
+              >
+                {chip.text}
+              </a>
+            ))}
+          </div>
           <div className="flex gap-3 items-center">
             <div
               ref={inputRef}
