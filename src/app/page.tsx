@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, KeyboardEvent, Fragment } from "react";
+import React, { useState, useRef, KeyboardEvent } from "react";
 import "../styles/animations.css";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -23,7 +23,7 @@ const parseMessageContent = (content: string): MessageSegment[] => {
   tempDiv.innerHTML = content;
   const segments: MessageSegment[] = [];
 
-  tempDiv.childNodes.forEach(node => {
+  tempDiv.childNodes.forEach((node) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.replace(/&nbsp;/g, " ").trim();
       if (text) {
@@ -81,6 +81,7 @@ const detectURLs = (text: string): MessageSegment[] => {
 };
 
 export default function Home() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     { role: "ai", content: "Hello! How can I help you today?" },
@@ -201,6 +202,7 @@ export default function Home() {
   };
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const content = e.currentTarget.textContent || "";
     setMessage(content);
   };
@@ -247,7 +249,7 @@ export default function Home() {
         <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white p-4 shadow-lg">
           <div className="max-w-3xl mx-auto flex items-center justify-between">
             <p className="text-lg font-medium">
-              You've exceeded the message limit. Please wait {retryAfter}{" "}
+              You&apos;ve exceeded the message limit. Please wait {retryAfter}{" "}
               seconds before sending another message.
             </p>
           </div>
@@ -305,7 +307,7 @@ export default function Home() {
                       msg.role === "ai" ? "prose-invert" : "prose-white"
                     }`}
                     components={{
-                      code({ node, inline, className, children, ...props }) {
+                      code({ inline, className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || "");
                         return !inline && match ? (
                           <div className="max-w-full overflow-x-auto my-4 rounded-lg">
@@ -384,7 +386,7 @@ export default function Home() {
                       ),
                     }}
                   >
-                    {msg.content}
+                    {msg.content.replace(/'/g, "&apos;")}
                   </ReactMarkdown>
                 </div>
               </div>
