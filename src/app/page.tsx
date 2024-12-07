@@ -23,7 +23,7 @@ const parseMessageContent = (content: string): MessageSegment[] => {
   tempDiv.innerHTML = content;
   const segments: MessageSegment[] = [];
 
-  tempDiv.childNodes.forEach((node) => {
+  tempDiv.childNodes.forEach(node => {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.replace(/&nbsp;/g, " ").trim();
       if (text) {
@@ -95,8 +95,8 @@ export default function Home() {
       url: "https://www.cnbc.com/2024/12/07/the-fed-is-on-course-to-cut-interest-rates-in-december-but-what-happens-next-is-anyones-guess.html",
     },
     {
-      text: "What is ChatGPT Pro?",
-      url: "https://openai.com/index/introducing-chatgpt-pro/",
+      text: "How do I use tools with the Groq API?",
+      url: "https://console.groq.com/docs/tool-use",
     },
     {
       text: "Tell me about the new Gemini model",
