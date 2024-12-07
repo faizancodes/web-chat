@@ -218,7 +218,7 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-[#343541]">
       {/* Header */}
       <div className="w-full bg-gradient-to-r from-[#2a2b38] via-[#343541] to-[#2a2b38] border-b border-gray-600 p-4 shadow-lg">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="max-w-3xl mx-auto flex items-center justify-between px-4 sm:px-6 md:px-8">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center transform hover:rotate-12 transition-transform duration-300">
               <svg
@@ -258,7 +258,7 @@ export default function Home() {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto pb-32 pt-4">
-        <div className="max-w-3xl mx-auto px-4">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-8">
           {messages.map((msg, index) => (
             <div
               key={index}
@@ -269,12 +269,12 @@ export default function Home() {
               } animate-fadeIn`}
             >
               <div
-                className={`flex gap-2 items-start ${
+                className={`flex gap-2 items-start w-full ${
                   msg.role === "ai" ? "flex-row" : "flex-row-reverse"
                 }`}
               >
                 {msg.role === "ai" ? (
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                     <svg
                       className="w-5 h-5 text-gray-500"
                       viewBox="0 0 24 24"
@@ -297,8 +297,8 @@ export default function Home() {
                 <div
                   className={`px-4 py-3 rounded-2xl ${
                     msg.role === "ai"
-                      ? `bg-[#444654] text-white ${msg.content === "Hello! How can I help you today?" ? "max-w-fit" : "max-w-[80%]"}`
-                      : "bg-[#4177DC] text-white shadow-sm min-w-[100px] max-w-[80%]"
+                      ? `bg-[#444654] text-white ${msg.content === "Hello! How can I help you today?" ? "max-w-fit" : "max-w-[85%] sm:max-w-[80%]"}`
+                      : "bg-[#4177DC] text-white shadow-sm min-w-[100px] max-w-[85%] sm:max-w-[80%]"
                   } overflow-hidden transform transition-all duration-200 ease-out`}
                 >
                   <ReactMarkdown
@@ -311,14 +311,14 @@ export default function Home() {
                         const match = /language-(\w+)/.exec(className || "");
                         return !inline && match ? (
                           <div className="max-w-full overflow-x-auto my-4 rounded-lg">
-                            <div className="flex items-center justify-between bg-[#1e1e1e] px-4 py-2 rounded-t-lg border-b border-[#333]">
+                            <div className="flex items-center justify-between bg-[#1e1e1e] px-3 sm:px-4 py-2 rounded-t-lg border-b border-[#333]">
                               <span className="text-xs text-gray-400">
                                 {match[1]}
                               </span>
                               <div className="flex gap-1.5">
-                                <div className="w-3 h-3 rounded-full bg-[#ff5f56]" />
-                                <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
-                                <div className="w-3 h-3 rounded-full bg-[#27c93f]" />
+                                <div className="w-2 sm:w-3 h-2 sm:h-3 rounded-full bg-[#ff5f56]" />
+                                <div className="w-2 sm:w-3 h-2 sm:h-3 rounded-full bg-[#ffbd2e]" />
+                                <div className="w-2 sm:w-3 h-2 sm:h-3 rounded-full bg-[#27c93f]" />
                               </div>
                             </div>
                             <SyntaxHighlighter
@@ -328,10 +328,12 @@ export default function Home() {
                               customStyle={{
                                 margin: 0,
                                 borderRadius: "0 0 0.5rem 0.5rem",
-                                padding: "1rem 1.25rem",
-                                fontSize: "0.875rem",
+                                padding: "0.75rem 1rem",
+                                fontSize: "0.8125rem",
                                 lineHeight: "1.5",
                                 backgroundColor: "#1e1e1e",
+                                overflowX: "auto",
+                                WebkitOverflowScrolling: "touch",
                               }}
                               {...props}
                             >
@@ -340,7 +342,7 @@ export default function Home() {
                           </div>
                         ) : (
                           <code
-                            className={`${className} text-sm px-1.5 py-0.5 rounded ${
+                            className={`${className} text-xs sm:text-sm px-1.5 py-0.5 rounded ${
                               msg.role === "ai" ? "bg-[#2d2d2d]" : "bg-gray-200"
                             }`}
                             {...props}
@@ -355,10 +357,10 @@ export default function Home() {
                         );
                         return (
                           <p
-                            className={`mb-2 last:mb-0 break-words ${
+                            className={`mb-2 last:mb-0 break-words text-sm sm:text-base ${
                               msg.role === "ai"
                                 ? `text-white text-left ${isGreeting ? "text-wrap" : "whitespace-pre-wrap"}`
-                                : "text-white text-[15px] text-left whitespace-pre-wrap"
+                                : "text-white text-left whitespace-pre-wrap"
                             }`}
                           >
                             {children}
@@ -366,7 +368,7 @@ export default function Home() {
                         );
                       },
                       pre: ({ children }) => (
-                        <pre className="max-w-full overflow-x-auto">
+                        <pre className="max-w-full overflow-x-auto -mx-4 sm:mx-0">
                           {children}
                         </pre>
                       ),
@@ -417,10 +419,10 @@ export default function Home() {
       </div>
 
       {/* Input Area */}
-      <div className="fixed bottom-0 w-full bg-[#343541] border-t border-gray-600 p-4">
-        <div className="max-w-3xl mx-auto">
+      <div className="fixed bottom-0 w-full bg-[#343541] border-t border-gray-600 p-2 sm:p-4">
+        <div className="max-w-3xl mx-auto px-2 sm:px-4">
           {/* Chips */}
-          <div className="flex gap-2 mb-3 flex-wrap">
+          <div className="flex gap-2 mb-3 overflow-x-auto pb-2 hide-scrollbar">
             {initialChips.map((chip, index) => (
               <a
                 key={index}
@@ -428,19 +430,19 @@ export default function Home() {
                 onClick={e => handleChipClick(e, chip)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block bg-[#40414f] text-blue-400 px-3 py-1.5 rounded-full text-sm hover:bg-[#4a4b59] transition-colors border border-gray-600 cursor-pointer"
+                className="inline-block bg-[#40414f] text-blue-400 px-3 py-1.5 rounded-full text-sm hover:bg-[#4a4b59] transition-colors border border-gray-600 cursor-pointer whitespace-nowrap flex-shrink-0"
               >
                 {chip.text}
               </a>
             ))}
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 sm:gap-3 items-center">
             <div
               ref={inputRef}
               contentEditable
               onInput={handleInput}
               onKeyPress={handleKeyPress}
-              className="flex-1 rounded-xl border border-gray-600 bg-[#40414f] px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-32 overflow-y-auto"
+              className="flex-1 rounded-xl border border-gray-600 bg-[#40414f] px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-32 overflow-y-auto text-sm sm:text-base"
               data-placeholder="Type your message..."
               onPaste={e => {
                 e.preventDefault();
@@ -511,7 +513,7 @@ export default function Home() {
             <button
               onClick={handleSend}
               disabled={isLoading}
-              className="bg-blue-500 text-white px-5 py-3 rounded-xl hover:bg-blue-600 transition-all disabled:bg-blue-300 disabled:cursor-not-allowed"
+              className="bg-blue-500 text-white px-4 sm:px-5 py-2 sm:py-3 rounded-xl hover:bg-blue-600 transition-all disabled:bg-blue-300 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {isLoading ? "Sending..." : "Send"}
             </button>
