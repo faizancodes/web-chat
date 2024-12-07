@@ -1,9 +1,9 @@
-import Groq from 'groq-sdk';
-import { NextResponse } from 'next/server';
-import { env } from '../../config/env';
+import Groq from "groq-sdk";
+import { NextResponse } from "next/server";
+import { env } from "../../config/env";
 
 const groq = new Groq({
-  apiKey: env.GROQ_API_KEY
+  apiKey: env.GROQ_API_KEY,
 });
 
 export async function POST(req: Request) {
@@ -19,9 +19,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ reply });
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
     return NextResponse.json(
-      { error: 'Failed to process the chat request' },
+      { error: "Failed to process the chat request" },
       { status: 500 }
     );
   }

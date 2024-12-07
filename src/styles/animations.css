@@ -1,0 +1,25 @@
+@keyframes urlChipAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(5px);
+  }
+  50% {
+    transform: scale(1.05) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.url-chip {
+  animation: urlChipAppear 0.3s ease-out forwards;
+  transform-origin: left center;
+}
+
+.url-chip:hover {
+  transition: all 0.2s ease;
+  background-color: #dbeafe !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+} 
