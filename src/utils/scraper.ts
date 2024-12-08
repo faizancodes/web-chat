@@ -174,6 +174,12 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
             ...chromium.args,
             "--hide-scrollbars",
             "--disable-web-security",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-font-subpixel-positioning",
+            "--disable-font-antialiasing",
+            "--font-render-hinting=none",
           ],
           defaultViewport: chromium.defaultViewport,
           executablePath: await chromium.executablePath(
