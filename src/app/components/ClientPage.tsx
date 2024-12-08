@@ -11,7 +11,7 @@ import RateLimitBanner from "./RateLimitBanner";
 import {
   handleChatRequest,
   handleConversationRequest,
-} from "@/lib/actions/api-handler";
+} from "../api/actions/api-handler";
 
 // Component for handling search params
 function ConversationLoader({

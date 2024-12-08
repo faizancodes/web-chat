@@ -9,7 +9,7 @@ import MessageList from "../components/MessageList";
 import {
   handleSharedRequest,
   handleContinueRequest,
-} from "@/lib/actions/api-handler";
+} from "../api/actions/api-handler";
 
 // ConversationLoader component to handle URL params and conversation loading
 function ConversationLoader({

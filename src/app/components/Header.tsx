@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import ShareModal from "./ShareModal";
 import ShareButton from "./ShareButton";
-import { handleShareRequest } from "@/lib/actions/api-handler";
+import { handleShareRequest } from "../api/actions/api-handler";
 
 // ShareUrlManager component to handle share URL logic
 function ShareUrlManager({
