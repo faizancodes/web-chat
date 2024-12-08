@@ -65,10 +65,10 @@ export default function InputArea({
   };
 
   return (
-    <div className="fixed bottom-0 w-full bg-[#343541] border-t border-gray-600 p-2 sm:p-4">
+    <div className="fixed bottom-0 w-full bg-[#343541] border-t border-gray-600 p-2 pb-safe sm:p-4">
       <div className="max-w-3xl mx-auto px-2 sm:px-4">
         {/* Chips */}
-        <div className="flex gap-2 mb-3 overflow-x-auto pb-2 hide-scrollbar">
+        <div className="flex gap-2.5 mb-3 overflow-x-auto pb-2.5 hide-scrollbar">
           {initialChips.map((chip, index) => (
             <a
               key={index}
@@ -76,7 +76,7 @@ export default function InputArea({
               onClick={e => handleChipClick(e, chip)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-[#40414f] text-blue-400 px-3 py-1.5 rounded-full text-sm hover:bg-[#4a4b59] transition-colors border border-gray-600 cursor-pointer whitespace-nowrap flex-shrink-0"
+              className="inline-block bg-[#40414f] text-blue-400 px-4 py-2 rounded-full text-sm hover:bg-[#4a4b59] transition-colors border border-gray-600 cursor-pointer whitespace-nowrap flex-shrink-0"
             >
               {chip.text}
             </a>
@@ -88,7 +88,7 @@ export default function InputArea({
             contentEditable
             onInput={handleInput}
             onKeyPress={handleKeyPress}
-            className="flex-1 rounded-xl border border-gray-600 bg-[#40414f] px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[40px] max-h-32 overflow-y-auto text-sm sm:text-base"
+            className="flex-1 rounded-xl border border-gray-600 bg-[#40414f] px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-40 overflow-y-auto text-base"
             data-placeholder="Type your message..."
             onPaste={e => {
               e.preventDefault();
@@ -159,7 +159,7 @@ export default function InputArea({
           <button
             onClick={handleSend}
             disabled={isLoading}
-            className="flex-shrink-0 bg-blue-500 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl hover:bg-blue-600 transition-all disabled:bg-blue-300 disabled:cursor-not-allowed text-sm sm:text-base h-[40px] sm:h-auto"
+            className="flex-shrink-0 bg-blue-500 text-white px-5 py-3 rounded-xl hover:bg-blue-600 transition-all disabled:bg-blue-300 disabled:cursor-not-allowed text-base min-h-[48px] min-w-[64px] flex items-center justify-center"
           >
             {isLoading ? "..." : "Send"}
           </button>
