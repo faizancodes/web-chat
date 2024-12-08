@@ -169,14 +169,16 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
         // Log version information
         logger.info(`Node version: ${process.version}`);
 
-        // Get Chrome path from chromium-min
-        const execPath = await chromium.executablePath();
-        logger.info(`Chrome executable path: ${execPath}`);
-
         browser = await puppeteer.launch({
-          args: chromium.args,
+          args: [
+            ...chromium.args,
+            "--hide-scrollbars",
+            "--disable-web-security",
+          ],
           defaultViewport: chromium.defaultViewport,
-          executablePath: await chromium.executablePath(),
+          executablePath: await chromium.executablePath(
+            `https://github.com/Sparticuz/chromium/releases/download/v116.0.0/chromium-v116.0.0-pack.tar`
+          ),
           headless: chromium.headless,
         });
       }
