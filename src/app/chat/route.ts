@@ -2,6 +2,8 @@ import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
 import { env } from "../../config/env";
 import { scrapeUrl, urlPattern } from "@/utils/scraper";
+import { saveConversation } from "@/utils/redis";
+import { nanoid } from "nanoid";
 
 const groq = new Groq({
   apiKey: env.GROQ_API_KEY,
@@ -80,7 +82,10 @@ async function attemptCompletion(
 
 export async function POST(req: Request) {
   try {
-    const { message, messages = [] } = await req.json();
+    const { message, messages = [], conversationId } = await req.json();
+
+    // Generate a new conversation ID if not provided
+    const currentConversationId = conversationId || nanoid();
 
     console.log("Message history:", messages);
 
@@ -133,8 +138,23 @@ export async function POST(req: Request) {
     // Attempt completion with retries and fallbacks
     const reply = await attemptCompletion(groqMessages, MODELS[0], 0);
 
+    // Create updated messages array
+    const updatedMessages = [
+      ...messages,
+      { role: "user", content: message },
+      { role: "ai", content: reply },
+    ];
+
+    // Save the updated conversation
+    try {
+      await saveConversation(currentConversationId, updatedMessages);
+    } catch (error) {
+      console.error("Error saving conversation:", error);
+    }
+
     return NextResponse.json({
       reply,
+      conversationId: currentConversationId,
       scrapedContent: scrapedResults,
     });
   } catch (error) {

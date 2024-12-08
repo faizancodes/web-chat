@@ -1,12 +1,51 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import "../styles/animations.css";
 import { Message } from "./types";
 import Header from "./components/Header";
 import MessageList from "./components/MessageList";
 import InputArea from "./components/InputArea";
 import RateLimitBanner from "./components/RateLimitBanner";
+
+// ConversationLoader component to handle URL params and conversation loading
+function ConversationLoader({
+  onConversationLoad,
+}: {
+  onConversationLoad: (messages: Message[], id: string | null) => void;
+}) {
+  const searchParams = useSearchParams();
+
+  React.useEffect(() => {
+    const id = searchParams.get("id");
+    if (id) {
+      fetchConversation(id).then(messages => {
+        if (messages) {
+          onConversationLoad(messages, id);
+        }
+      });
+    }
+  }, [searchParams, onConversationLoad]);
+
+  return null;
+}
+
+async function fetchConversation(id: string): Promise<Message[] | null> {
+  try {
+    const response = await fetch(`/api/conversation/${id}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.messages;
+    } else if (response.status !== 404) {
+      console.error("Error fetching conversation");
+    }
+    return null;
+  } catch (error) {
+    console.error("Error:", error);
+    return null;
+  }
+}
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
@@ -15,6 +54,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [rateLimitError, setRateLimitError] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [initialChips] = useState([
     {
       text: "Summarize this article",
@@ -30,11 +70,17 @@ export default function Home() {
     },
   ]);
 
+  const handleConversationLoad = React.useCallback(
+    (loadedMessages: Message[], id: string | null) => {
+      setMessages(loadedMessages);
+      setConversationId(id);
+    },
+    []
+  );
+
   const sendMessage = async (messageContent: string) => {
-    // Add user message to the conversation
     const userMessage = { role: "user" as const, content: messageContent };
     setMessages(prev => [...prev, userMessage]);
-
     setIsLoading(true);
 
     try {
@@ -46,6 +92,7 @@ export default function Home() {
         body: JSON.stringify({
           message: messageContent,
           messages: messages,
+          conversationId,
         }),
       });
 
@@ -53,7 +100,6 @@ export default function Home() {
         const retryAfter = parseInt(
           response.headers.get("Retry-After") || "20"
         );
-        console.log("Rate limit hit:", { retryAfter });
         setRateLimitError(true);
         setRetryAfter(retryAfter);
         return;
@@ -64,7 +110,14 @@ export default function Home() {
       }
 
       const data = await response.json();
-      // Add AI response to the conversation
+
+      // Update conversation ID and URL
+      if (data.conversationId && !conversationId) {
+        setConversationId(data.conversationId);
+        const newUrl = `${window.location.pathname}?id=${data.conversationId}`;
+        window.history.pushState({}, "", newUrl);
+      }
+
       setMessages(prev => [...prev, { role: "ai", content: data.reply }]);
     } catch (error) {
       console.error("Error:", error);
@@ -83,6 +136,9 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-[#343541]">
       <Header />
+      <Suspense fallback={null}>
+        <ConversationLoader onConversationLoad={handleConversationLoad} />
+      </Suspense>
       {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
       <MessageList messages={messages} isLoading={isLoading} />
       <InputArea

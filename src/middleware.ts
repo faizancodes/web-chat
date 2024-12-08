@@ -10,7 +10,7 @@ const redis = new Redis({
 
 // Rate limit configuration
 const RATE_LIMIT_WINDOW = 20; // 20 seconds
-const MAX_REQUESTS = 5; // maximum requests per window
+const MAX_REQUESTS = 10; // maximum requests per window
 
 export async function middleware(request: NextRequest) {
   try {
