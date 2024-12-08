@@ -6,9 +6,6 @@
     },
     "app/utils/**/*": {
       "maxDuration": 60
-    },
-    "src/lib/actions/**/*": {
-      "maxDuration": 60
     }
   }
 }
