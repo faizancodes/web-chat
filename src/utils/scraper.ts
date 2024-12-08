@@ -169,23 +169,15 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
         // Log version information
         logger.info(`Node version: ${process.version}`);
         
-        // Configure Chrome for Vercel
-        const execPath = await chromium.executablePath("/tmp");
+        // Get Chrome path from chromium-min
+        const execPath = await chromium.executablePath();
         logger.info(`Chrome executable path: ${execPath}`);
 
         browser = await puppeteer.launch({
-          args: [
-            ...chromium.args,
-            "--disable-features=site-per-process",
-            "--disable-gpu",
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--single-process",
-          ],
-          defaultViewport: chromium.defaultViewport,
-          executablePath: execPath,
-          headless: true,
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
         });
       }
 
