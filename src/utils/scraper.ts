@@ -163,6 +163,7 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
           "--disable-gpu",
           "--window-size=1920x1080",
         ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
       });
 
       const page = await browser.newPage();
