@@ -1,9 +1,9 @@
 import chromium from "@sparticuz/chromium-min";
-import { Browser, PuppeteerNodeLaunchOptions } from "puppeteer-core";
-import puppeteer from "puppeteer-core";
+import { Browser } from "puppeteer";
 import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 import { Logger } from "./logger";
+import { Browser as CoreBrowser } from "puppeteer-core";
 
 const logger = new Logger("scraper");
 
@@ -151,38 +151,25 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
     }
     logger.info(`Cache miss - proceeding with fresh scrape for: ${url}`);
 
-    let browser: Browser | null = null;
+    let browser: Browser | CoreBrowser | null = null;
     try {
-      // Launch puppeteer browser with optimized settings
       logger.info("Launching puppeteer browser");
 
-      const isDev = process.env.NODE_ENV === "development";
-
-      const launchOptions: PuppeteerNodeLaunchOptions = isDev
-        ? {
-            args: ["--no-sandbox"],
-            executablePath:
-              process.platform === "darwin"
-                ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" // MacOS path
-                : process.platform === "win32"
-                  ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" // Windows path
-                  : "/usr/bin/google-chrome", // Linux path
-            headless: true,
-          }
-        : {
-            args: [
-              ...chromium.args,
-              "--no-sandbox",
-              "--disable-setuid-sandbox",
-              "--disable-dev-shm-usage",
-              "--disable-gpu",
-            ],
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-          };
-
-      browser = await puppeteer.launch(launchOptions);
+      if (process.env.NODE_ENV === "development") {
+        const puppeteer = await import("puppeteer");
+        browser = (await puppeteer.launch({
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+          headless: true,
+        })) as Browser;
+      } else {
+        const puppeteer = await import("puppeteer-core");
+        browser = await puppeteer.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath(),
+          headless: chromium.headless,
+        });
+      }
 
       const page = await browser.newPage();
       logger.info("Browser page created");
@@ -291,7 +278,7 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       return scrapedContent;
     } finally {
       if (browser) {
-        await browser.close();
+        await (browser as Browser).close();
         logger.info("Browser closed");
       }
     }
@@ -303,7 +290,7 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       headings: { h1: "", h2: "" },
       metaDescription: "",
       content: "",
-      error: "Failed to scrape URL",
+      error: `Failed to scrape URL: ${(error as Error).message || "Unknown error"}`,
     };
     return errorContent;
   }
