@@ -70,6 +70,13 @@ export default function ClientPage() {
     },
   ]);
 
+  const handleNewConversation = () => {
+    setMessages([{ role: "ai", content: "Hello! How can I help you today?" }]);
+    setConversationId(null);
+    // Remove the conversation ID from the URL
+    window.history.pushState({}, "", window.location.pathname);
+  };
+
   const handleConversationLoad = React.useCallback(
     (loadedMessages: Message[], id: string | null) => {
       setMessages(loadedMessages);
@@ -145,7 +152,7 @@ export default function ClientPage() {
       }
     >
       <div className="flex flex-col h-screen bg-[#343541]">
-        <Header />
+        <Header onNewConversation={handleNewConversation} />
         <ConversationLoader onConversationLoad={handleConversationLoad} />
         {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
         <MessageList messages={messages} isLoading={isLoading} />

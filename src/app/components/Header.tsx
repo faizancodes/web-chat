@@ -26,7 +26,11 @@ function ShareUrlManager({
 }
 
 // Create a wrapped header content component
-function HeaderContent() {
+function HeaderContent({
+  onNewConversation,
+}: {
+  onNewConversation?: () => void;
+}) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const searchParams = useSearchParams();
@@ -82,9 +86,33 @@ function HeaderContent() {
             </p>
           </div>
         </div>
-        <Suspense fallback={null}>
-          <ShareButton onShare={handleShare} />
-        </Suspense>
+        <div className="flex items-center space-x-2">
+          {onNewConversation && (
+            <button
+              onClick={onNewConversation}
+              className="flex items-center space-x-1.5 bg-gray-300 hover:bg-gray-300 text-black px-3 py-1.5 rounded-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="hidden sm:inline font-medium">New Chat</span>
+            </button>
+          )}
+          <Suspense fallback={null}>
+            <ShareButton onShare={handleShare} />
+          </Suspense>
+        </div>
       </div>
       <Suspense fallback={null}>
         <ShareUrlManager onShareUrlChange={setShareUrl} />
@@ -99,7 +127,11 @@ function HeaderContent() {
 }
 
 // Export the wrapped component
-export default function Header() {
+export default function Header({
+  onNewConversation,
+}: {
+  onNewConversation?: () => void;
+} = {}) {
   return (
     <Suspense
       fallback={
@@ -110,7 +142,7 @@ export default function Header() {
         </div>
       }
     >
-      <HeaderContent />
+      <HeaderContent onNewConversation={onNewConversation} />
     </Suspense>
   );
 }
