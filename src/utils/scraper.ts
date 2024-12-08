@@ -165,12 +165,12 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       } else {
         logger.info("Launching puppeteer-core browser on production");
         const puppeteer = await import("puppeteer-core");
-
+        
         // Log version information
         logger.info(`Node version: ${process.version}`);
-
-        // Get the Chrome path
-        const execPath = await chromium.executablePath();
+        
+        // Configure Chrome for Vercel
+        const execPath = await chromium.executablePath("/tmp");
         logger.info(`Chrome executable path: ${execPath}`);
 
         browser = await puppeteer.launch({
