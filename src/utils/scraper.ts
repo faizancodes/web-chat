@@ -166,7 +166,15 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
         logger.info("Launching puppeteer-core browser on production");
         const puppeteer = await import("puppeteer-core");
         browser = await puppeteer.launch({
-          args: chromium.args,
+          args: [
+            ...chromium.args,
+            "--disable-features=site-per-process",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--single-process",
+          ],
           defaultViewport: chromium.defaultViewport,
           executablePath: await chromium.executablePath(),
           headless: chromium.headless,
