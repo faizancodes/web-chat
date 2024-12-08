@@ -20,8 +20,8 @@ export default function ShareModal({
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
+    } catch {
+      console.error("Error: Failed to copy");
     }
   };
 

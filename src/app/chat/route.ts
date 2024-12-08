@@ -4,6 +4,9 @@ import { env } from "../../config/env";
 import { scrapeUrl, urlPattern } from "@/utils/scraper";
 import { saveConversation } from "@/utils/redis";
 import { nanoid } from "nanoid";
+import { Logger } from "@/utils/logger";
+
+const logger = new Logger("api/chat");
 
 const groq = new Groq({
   apiKey: env.GROQ_API_KEY,
@@ -42,7 +45,7 @@ async function attemptCompletion(
   retryCount = 0
 ): Promise<string> {
   try {
-    console.log(
+    logger.info(
       `Attempting completion with model: ${currentModel}, retry: ${retryCount}`
     );
     const completion = await groq.chat.completions.create({
@@ -54,7 +57,7 @@ async function attemptCompletion(
     }
     return completion.choices[0].message.content;
   } catch (error: unknown) {
-    console.error(
+    logger.error(
       `Error with model ${currentModel}:`,
       error instanceof Error ? error.message : String(error)
     );
@@ -62,7 +65,7 @@ async function attemptCompletion(
     // If we haven't exceeded retries for current model, retry with exponential backoff
     if (retryCount < MAX_RETRIES) {
       const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
-      console.log(`Retrying with ${currentModel} after ${delay}ms...`);
+      logger.info(`Retrying with ${currentModel} after ${delay}ms...`);
       await sleep(delay);
       return attemptCompletion(messages, currentModel, retryCount + 1);
     }
@@ -70,7 +73,7 @@ async function attemptCompletion(
     // If we've exhausted retries, try next model
     const currentModelIndex = MODELS.indexOf(currentModel);
     if (currentModelIndex < MODELS.length - 1) {
-      console.log(
+      logger.warn(
         `Falling back to next model: ${MODELS[currentModelIndex + 1]}`
       );
       return attemptCompletion(messages, MODELS[currentModelIndex + 1], 0);
@@ -83,22 +86,25 @@ async function attemptCompletion(
 export async function POST(req: Request) {
   try {
     const { message, messages = [], conversationId } = await req.json();
+    logger.info(`Processing new chat request`, {
+      conversationId: conversationId || "new",
+    });
 
     // Generate a new conversation ID if not provided
     const currentConversationId = conversationId || nanoid();
 
-    console.log("Message history:", messages);
+    logger.debug("Message history:", messages);
 
     // Extract URLs from the message
     const urls = message.match(urlPattern) || [];
-    console.log("Found URLs:", urls);
+    logger.info("Found URLs in message:", urls);
 
     // Scrape all URLs in parallel
     const scrapedResults = await Promise.all(
       urls.map((url: string) => scrapeUrl(url))
     );
 
-    console.log("scrapedResults", scrapedResults);
+    logger.debug("Scraped content from URLs:", scrapedResults);
 
     let userPrompt = `Here is my question: "${message}".`;
 
@@ -133,10 +139,11 @@ export async function POST(req: Request) {
       },
     ];
 
-    // console.log("groqMessages", groqMessages);
+    logger.debug("Prepared Groq messages for completion");
 
     // Attempt completion with retries and fallbacks
     const reply = await attemptCompletion(groqMessages, MODELS[0], 0);
+    logger.info("Successfully generated reply");
 
     // Create updated messages array
     const updatedMessages = [
@@ -148,8 +155,11 @@ export async function POST(req: Request) {
     // Save the updated conversation
     try {
       await saveConversation(currentConversationId, updatedMessages);
+      logger.info("Saved conversation successfully", {
+        conversationId: currentConversationId,
+      });
     } catch (error) {
-      console.error("Error saving conversation:", error);
+      logger.error("Error saving conversation:", error);
     }
 
     return NextResponse.json({
@@ -158,7 +168,7 @@ export async function POST(req: Request) {
       scrapedContent: scrapedResults,
     });
   } catch (error) {
-    console.error("Error:", error);
+    logger.error("Error processing chat request:", error);
     return NextResponse.json(
       { error: "Failed to process the chat request" },
       { status: 500 }

@@ -1,6 +1,9 @@
 import * as puppeteer from "puppeteer";
 import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
+import { Logger } from "./logger";
+
+const logger = new Logger("scraper");
 
 // URL regex pattern that matches http/https URLs
 export const urlPattern =
@@ -8,8 +11,8 @@ export const urlPattern =
 
 // Initialize Redis client with error handling
 const redis = new Redis({
-  url: process.env.REDIS_URL || "",
-  token: process.env.REDIS_TOKEN || "",
+  url: process.env.UPSTASH_REDIS_REST_URL || "",
+  token: process.env.UPSTASH_REDIS_REST_TOKEN || "",
 });
 
 // Cache TTL in seconds (7 days)
@@ -61,15 +64,15 @@ function getCacheKey(url: string): string {
 async function getCachedContent(url: string): Promise<ScrapedContent | null> {
   try {
     const cacheKey = getCacheKey(url);
-    console.log(`[Cache] Checking cache for key: ${cacheKey}`);
+    logger.info(`Checking cache for key: ${cacheKey}`);
     const cached = await redis.get(cacheKey);
 
     if (!cached) {
-      console.log(`[Cache] Miss - No cached content found for: ${url}`);
+      logger.info(`Cache miss - No cached content found for: ${url}`);
       return null;
     }
 
-    console.log(`[Cache] Hit - Found cached content for: ${url}`);
+    logger.info(`Cache hit - Found cached content for: ${url}`);
 
     // Handle both string and object responses from Redis
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,28 +81,25 @@ async function getCachedContent(url: string): Promise<ScrapedContent | null> {
       try {
         parsed = JSON.parse(cached);
       } catch (parseError) {
-        console.error("[Cache] JSON parse error:", parseError);
+        logger.error(`JSON parse error for cached content: ${parseError}`);
         await redis.del(cacheKey);
         return null;
       }
     } else {
-      // If Redis returned an object directly, use it as is
       parsed = cached;
     }
 
     if (isValidScrapedContent(parsed)) {
       const age = Date.now() - (parsed.cachedAt || 0);
-      console.log(
-        `[Cache] Content age: ${Math.round(age / 1000 / 60)} minutes`
-      );
+      logger.info(`Cache content age: ${Math.round(age / 1000 / 60)} minutes`);
       return parsed;
     }
 
-    console.warn("[Cache] Invalid cached content format:", url);
+    logger.warn(`Invalid cached content format for URL: ${url}`);
     await redis.del(cacheKey);
     return null;
   } catch (error) {
-    console.error("[Cache] Retrieval error:", error);
+    logger.error(`Cache retrieval error: ${error}`);
     return null;
   }
 }
@@ -115,25 +115,25 @@ async function cacheContent(
 
     // Validate content before serializing
     if (!isValidScrapedContent(content)) {
-      console.error("[Cache] Attempted to cache invalid content format");
+      logger.error(`Attempted to cache invalid content format for URL: ${url}`);
       return;
     }
 
     const serialized = JSON.stringify(content);
 
     if (serialized.length > MAX_CACHE_SIZE) {
-      console.warn(
-        `[Cache] Content too large to cache for URL: ${url} (${serialized.length} bytes)`
+      logger.warn(
+        `Content too large to cache for URL: ${url} (${serialized.length} bytes)`
       );
       return;
     }
 
     await redis.set(cacheKey, serialized, { ex: CACHE_TTL });
-    console.log(
-      `[Cache] Successfully cached content for: ${url} (${serialized.length} bytes, TTL: ${CACHE_TTL}s)`
+    logger.info(
+      `Successfully cached content for: ${url} (${serialized.length} bytes, TTL: ${CACHE_TTL}s)`
     );
   } catch (error) {
-    console.error("[Cache] Storage error:", error);
+    logger.error(`Cache storage error: ${error}`);
   }
 }
 
@@ -141,19 +141,18 @@ async function cacheContent(
 export async function scrapeUrl(url: string): Promise<ScrapedContent> {
   try {
     // Check cache first
-    console.log(`[Scraper] Starting scrape process for: ${url}`);
+    logger.info(`Starting scrape process for: ${url}`);
     const cached = await getCachedContent(url);
     if (cached) {
-      console.log(`[Scraper] Using cached content for: ${url}`);
+      logger.info(`Using cached content for: ${url}`);
       return cached;
     }
-    console.log(
-      `[Scraper] Cache miss - proceeding with fresh scrape for: ${url}`
-    );
+    logger.info(`Cache miss - proceeding with fresh scrape for: ${url}`);
 
     let browser: puppeteer.Browser | null = null;
     try {
       // Launch puppeteer browser with optimized settings
+      logger.info("Launching puppeteer browser");
       browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -167,6 +166,7 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       });
 
       const page = await browser.newPage();
+      logger.info("Browser page created");
 
       // Optimize page settings
       await page.setRequestInterception(true);
@@ -184,7 +184,7 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
         }
       });
 
-      // Set viewport and user agent
+      logger.info("Navigating to URL");
       await page.setViewport({ width: 1920, height: 1080 });
       await page.setUserAgent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -192,10 +192,12 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
 
       // Navigate with reduced wait time
       await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+      logger.info("Page loaded successfully");
 
       // Get the HTML content directly from the page
       const html = await page.content();
       const $ = cheerio.load(html);
+      logger.info("HTML content loaded into Cheerio");
 
       // Remove unnecessary elements in one go
       $("script, style, noscript, iframe").remove();
@@ -205,6 +207,7 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       const metaDescription =
         $('meta[name="description"]').attr("content") || "";
 
+      logger.info("Extracting page content");
       // Enhanced heading extraction
       const headings = {
         h1: $("h1")
@@ -263,15 +266,17 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
 
       // Cache the scraped content
       await cacheContent(url, scrapedContent);
+      logger.info("Scraping completed successfully");
 
       return scrapedContent;
     } finally {
       if (browser) {
         await browser.close();
+        logger.info("Browser closed");
       }
     }
   } catch (error) {
-    console.error(`Error scraping ${url}:`, error);
+    logger.error(`Error scraping ${url}: ${error}`);
     const errorContent: ScrapedContent = {
       url,
       title: "",

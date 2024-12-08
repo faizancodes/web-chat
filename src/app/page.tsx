@@ -41,8 +41,8 @@ async function fetchConversation(id: string): Promise<Message[] | null> {
       console.error("Error fetching conversation");
     }
     return null;
-  } catch (error) {
-    console.error("Error:", error);
+  } catch {
+    console.error("Error fetching conversation:");
     return null;
   }
 }
@@ -119,8 +119,8 @@ export default function Home() {
       }
 
       setMessages(prev => [...prev, { role: "ai", content: data.reply }]);
-    } catch (error) {
-      console.error("Error:", error);
+    } catch {
+      console.error("Error sending message");
       setMessages(prev => [
         ...prev,
         {

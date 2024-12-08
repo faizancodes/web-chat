@@ -1,56 +1,136 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Redis } from "@upstash/redis";
+import { Logger } from "./utils/logger";
+
+const logger = new Logger("middleware");
 
 // Initialize Redis client
 const redis = new Redis({
-  url: process.env.REDIS_URL || "",
-  token: process.env.REDIS_TOKEN || "",
+  url: process.env.UPSTASH_REDIS_REST_URL || "",
+  token: process.env.UPSTASH_REDIS_REST_TOKEN || "",
 });
 
 // Rate limit configuration
-const RATE_LIMIT_WINDOW = 20; // 20 seconds
-const MAX_REQUESTS = 10; // maximum requests per window
+const RATE_LIMIT_WINDOW = 60; // 1 minute window for serverless functions
+const MAX_REQUESTS = 20; // maximum requests per window
+
+// Helper function to get real IP
+function getSecureClientIP(request: NextRequest): string {
+  // Vercel-specific headers first
+  const vercelForwardedFor = request.headers.get("x-vercel-forwarded-for");
+  if (vercelForwardedFor && isValidIP(vercelForwardedFor)) {
+    return vercelForwardedFor;
+  }
+
+  // Vercel proxied IP
+  const vercelIP = request.headers.get("x-vercel-ip");
+  if (vercelIP && isValidIP(vercelIP)) {
+    return vercelIP;
+  }
+
+  // Cloudflare headers (if using Cloudflare with Vercel)
+  const cfIP = request.headers.get("cf-connecting-ip");
+  if (cfIP && isValidIP(cfIP)) {
+    return cfIP;
+  }
+
+  // Standard headers as fallback
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const ips = forwardedFor.split(",").map(ip => ip.trim());
+    if (ips[0] && isValidIP(ips[0])) return ips[0];
+  }
+
+  // Last resort: real IP
+  const realIP = request.headers.get("x-real-ip");
+  if (realIP && isValidIP(realIP)) return realIP;
+
+  return "unknown";
+}
+
+// Validate IP address format
+function isValidIP(ip: string): boolean {
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+  return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+}
+
+// Create a secure rate limit key
+async function createRateLimitKey(
+  ip: string,
+  pathname: string
+): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(
+    `${ip}:${pathname}:${process.env.RATE_LIMIT_SECRET || ""}`
+  );
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  return `rate_limit:${hashHex}`;
+}
 
 export async function middleware(request: NextRequest) {
   try {
-    // Get IP address from the request
-    const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0] ||
-      request.headers.get("x-real-ip") ||
-      "anonymous";
+    const ip = getSecureClientIP(request);
     const pathname = request.nextUrl.pathname;
 
-    // Create a unique key for this IP
-    const key = `rate_limit:${ip}`;
+    logger.info(`Processing request from ${ip} to ${pathname}`);
 
-    // Get the current count for this IP
-    const currentCount = await redis.get(key);
+    // Skip rate limiting for static assets
+    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico") {
+      logger.debug(`Skipping rate limit for static asset: ${pathname}`);
+      return NextResponse.next();
+    }
 
-    if (currentCount === null) {
-      // First request from this IP
-      await redis.setex(key, RATE_LIMIT_WINDOW, 1);
-    } else if (parseInt(currentCount as string) >= MAX_REQUESTS) {
-      // Rate limit exceeded
-      console.log(`Rate limit exceeded for IP: ${ip}`);
-      return new NextResponse("Too Many Requests", {
+    // Check rate limit
+    const key = await createRateLimitKey(ip, pathname);
+    const count = await redis.get(key);
+
+    logger.debug(
+      `Rate limit check - IP: ${ip}, Path: ${pathname}, Current count: ${count}`
+    );
+
+    // Check normal limit
+    if (count !== null && parseInt(count as string) >= MAX_REQUESTS) {
+      logger.warn(`Rate limit exceeded for IP: ${ip}, Path: ${pathname}`);
+      return new NextResponse(null, {
         status: 429,
         headers: {
           "Retry-After": RATE_LIMIT_WINDOW.toString(),
           "X-RateLimit-Limit": MAX_REQUESTS.toString(),
           "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": (
+            Math.floor(Date.now() / 1000) + RATE_LIMIT_WINDOW
+          ).toString(),
         },
       });
-    } else {
-      // Increment the counter
-      await redis.incr(key);
     }
 
-    // Clone the request headers
+    // Update counter
+    if (count === null) {
+      await redis.setex(key, RATE_LIMIT_WINDOW, 1);
+      logger.debug(`Initialized rate limit counter for ${key}`);
+    } else {
+      await redis.incr(key);
+      logger.debug(`Incremented rate limit counter for ${key}`);
+    }
+
+    // Set security headers
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-middleware-cache", "no-cache");
+    requestHeaders.set("X-Content-Type-Options", "nosniff");
+    requestHeaders.set("X-Frame-Options", "DENY");
+    requestHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    // Add Vercel-specific security headers
+    requestHeaders.set(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()"
+    );
+    requestHeaders.set("X-DNS-Prefetch-Control", "off");
 
-    console.log(`Middleware: Processing request to ${pathname} from ${ip}`);
+    logger.debug("Security headers set successfully");
 
     return NextResponse.next({
       request: {
@@ -58,9 +138,16 @@ export async function middleware(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Rate limiting error:", error);
-    // On Redis error, allow the request to proceed
-    return NextResponse.next();
+    logger.error("Middleware error occurred", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return new NextResponse(null, {
+      status: 500,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    });
   }
 }
 
@@ -68,10 +155,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * Match all request paths except static files and images
      */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
