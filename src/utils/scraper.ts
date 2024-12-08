@@ -177,15 +177,24 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--font-render-hinting=none",
             "--disable-font-subpixel-positioning",
             "--disable-font-antialiasing",
-            "--font-render-hinting=none",
+            "--no-first-run",
+            "--disable-features=site-per-process",
+            "--disable-features=IsolateOrigins",
+            "--disable-features=site-isolation",
+            "--force-color-profile=srgb",
+            "--disable-remote-fonts",
+            "--disable-features=FontAccess",
           ],
           defaultViewport: chromium.defaultViewport,
           executablePath: await chromium.executablePath(
             `https://github.com/Sparticuz/chromium/releases/download/v116.0.0/chromium-v116.0.0-pack.tar`
           ),
           headless: chromium.headless,
+          ignoreDefaultArgs: ["--disable-extensions"],
         });
       }
 
