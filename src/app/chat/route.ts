@@ -20,8 +20,8 @@ type GroqMessage = {
 
 const MODELS: string[] = [
   "llama-3.1-8b-instant",
-  "llama3-70b-8192",
   "llama3-8b-8192",
+  "llama3-70b-8192",
   "gemma2-9b-it",
   "gemma-7b-it",
 ];

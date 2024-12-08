@@ -1,5 +1,5 @@
-import axios from "axios";
-import * as cheerio from "cheerio";
+import * as puppeteer from 'puppeteer';
+import * as cheerio from 'cheerio';
 
 // URL regex pattern that matches http/https URLs
 export const urlPattern =
@@ -7,7 +7,7 @@ export const urlPattern =
 
 // Function to clean text content
 function cleanText(text: string): string {
-  return text.replace(/\s+/g, " ").replace(/\n+/g, " ").trim();
+  return text.replace(/\s+/g, ' ').replace(/\n+/g, ' ').trim();
 }
 
 export interface ScrapedContent {
@@ -22,92 +22,97 @@ export interface ScrapedContent {
   error: string | null;
 }
 
-// Function to scrape content from a URL
+// Function to scrape content from a URL using Puppeteer + Cheerio
 export async function scrapeUrl(url: string): Promise<ScrapedContent> {
+  let browser: puppeteer.Browser | null = null;
+
   try {
-    const response = await axios.get(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        Connection: "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Cache-Control": "max-age=0",
-      },
+    // Launch puppeteer browser with optimized settings
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--window-size=1920x1080',
+      ],
     });
-    const $ = cheerio.load(response.data);
 
-    // Remove script tags, style tags, and comments
-    $("script").remove();
-    $("style").remove();
-    $("noscript").remove();
-    $("iframe").remove();
+    const page = await browser.newPage();
 
-    // Extract useful information
-    const title = $("title").text();
+    // Optimize page settings
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const resourceType = req.resourceType();
+      if (resourceType === 'image' || resourceType === 'stylesheet' || resourceType === 'font' || resourceType === 'media') {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    // Set viewport and user agent
+    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    );
+
+    // Navigate with reduced wait time
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+    // Get the HTML content directly from the page
+    const html = await page.content();
+    const $ = cheerio.load(html);
+
+    // Remove unnecessary elements in one go
+    $("script, style, noscript, iframe").remove();
+
+    // Extract content efficiently
+    const title = $("title").text() || "";
     const metaDescription = $('meta[name="description"]').attr("content") || "";
-    const h1 = $("h1")
-      .map((_, el) => $(el).text())
-      .get()
-      .join(" ");
-    const h2 = $("h2")
-      .map((_, el) => $(el).text())
-      .get()
+    
+    // Enhanced heading extraction
+    const headings = {
+      h1: $("h1").map((_, el) => $(el).text().trim()).get().join(" "),
+      h2: $("h2").map((_, el) => $(el).text().trim()).get().join(" ")
+    };
+
+    // Enhanced content extraction
+    const textSelectors = [
+      'p',          // paragraphs
+      'li',         // list items
+      'td',         // table cells
+      'th',         // table headers
+      'blockquote', // quotes
+      'article',    // article text
+      'span',       // inline text
+      'div',        // div text
+      'h3',         // additional headings
+      'h4',
+      'h5',
+      'h6'
+    ];
+
+    const bodyContent = textSelectors
+      .map(selector => 
+        $(selector)
+          .map((_, element) => $(element).text().trim())
+          .get()
+          .filter(text => text.length > 0)
+      )
+      .flat()
       .join(" ");
 
-    // Get text from important elements
-    const articleText = $("article")
-      .map((_, el) => $(el).text())
-      .get()
-      .join(" ");
-    const mainText = $("main")
-      .map((_, el) => $(el).text())
-      .get()
-      .join(" ");
-    const contentText = $('.content, #content, [class*="content"]')
-      .map((_, el) => $(el).text())
-      .get()
-      .join(" ");
-
-    // Get all paragraph text
-    const paragraphs = $("p")
-      .map((_, el) => $(el).text())
-      .get()
-      .join(" ");
-
-    // Get list items
-    const listItems = $("li")
-      .map((_, el) => $(el).text())
-      .get()
-      .join(" ");
-
-    // Combine all content
-    let combinedContent = [
-      title,
-      metaDescription,
-      h1,
-      h2,
-      articleText,
-      mainText,
-      contentText,
-      paragraphs,
-      listItems,
-    ].join(" ");
-
-    // Clean and truncate the content
-    combinedContent = cleanText(combinedContent).slice(0, 10000);
-
-    console.log("Scraped content length:", combinedContent.length);
+    const combinedContent = cleanText([title, metaDescription, headings.h1, headings.h2, bodyContent].join(" ")).slice(0, 40000);
 
     return {
       url,
       title: cleanText(title),
       headings: {
-        h1: cleanText(h1),
-        h2: cleanText(h2),
+        h1: cleanText(headings.h1),
+        h2: cleanText(headings.h2),
       },
       metaDescription: cleanText(metaDescription),
       content: combinedContent,
@@ -123,5 +128,9 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       content: "",
       error: "Failed to scrape URL",
     };
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 }
