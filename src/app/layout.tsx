@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Web Chat",
-  description: "A chat interface for the web, inspired by Perplexity",
+  title: "WebChat",
+  description: "A chat interface for the web",
 };
 
 export default function RootLayout({
