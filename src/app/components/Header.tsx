@@ -17,6 +17,8 @@ export default function Header() {
               <a
                 href="https://www.linkedin.com/in/faizancodes/"
                 className="text-blue-400 hover:text-blue-500 transition-colors duration-300"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 Faizan
               </a>
