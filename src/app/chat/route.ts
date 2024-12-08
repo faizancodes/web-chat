@@ -128,7 +128,7 @@ export async function POST(req: Request) {
       },
     ];
 
-    console.log("groqMessages", groqMessages);
+    // console.log("groqMessages", groqMessages);
 
     // Attempt completion with retries and fallbacks
     const reply = await attemptCompletion(groqMessages, MODELS[0], 0);
