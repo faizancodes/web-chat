@@ -1,4 +1,6 @@
-import * as puppeteer from "puppeteer";
+import chromium from "@sparticuz/chromium-min";
+import { Browser, PuppeteerNodeLaunchOptions } from "puppeteer-core";
+import puppeteer from "puppeteer-core";
 import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 import { Logger } from "./logger";
@@ -149,29 +151,40 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
     }
     logger.info(`Cache miss - proceeding with fresh scrape for: ${url}`);
 
-    let browser: puppeteer.Browser | null = null;
+    let browser: Browser | null = null;
     try {
       // Launch puppeteer browser with optimized settings
       logger.info("Launching puppeteer browser");
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-accelerated-2d-canvas",
-          "--disable-gpu",
-          "--window-size=1920x1080",
-        ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
-      });
+
+      const isDev = process.env.NODE_ENV === "development";
+
+      const launchOptions: PuppeteerNodeLaunchOptions = isDev
+        ? {
+            args: ["--no-sandbox"],
+            executablePath:
+              process.platform === "darwin"
+                ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" // MacOS path
+                : process.platform === "win32"
+                  ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" // Windows path
+                  : "/usr/bin/google-chrome", // Linux path
+            headless: true,
+          }
+        : {
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+          };
+
+      browser = await puppeteer.launch(launchOptions);
 
       const page = await browser.newPage();
       logger.info("Browser page created");
 
       // Optimize page settings
       await page.setRequestInterception(true);
-      page.on("request", req => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      page.on("request", (req: any) => {
         const resourceType = req.resourceType();
         if (
           resourceType === "image" ||
