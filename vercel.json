@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build",
+  "ignoreCommand": "npm run turbo-ignore",
+  "functions": {
+    "app/api/**/*": {
+      "maxDuration": 30
+    }
+  }
+}
