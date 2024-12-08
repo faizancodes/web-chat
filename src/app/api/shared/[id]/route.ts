@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getConversation } from "@/utils/redis";
+import { getSharedConversation } from "@/utils/redis";
 import { Logger } from "@/utils/logger";
 
-const logger = new Logger("api/conversation");
+const logger = new Logger("api/shared");
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  logger.info("Received GET request for conversation");
+  logger.info("Received GET request for shared conversation");
 
   try {
     const { id } = await context.params;
@@ -22,13 +22,13 @@ export async function GET(
       );
     }
 
-    logger.info(`Fetching conversation with ID: ${id}`);
-    const conversation = await getConversation(id);
+    logger.info(`Fetching shared conversation with ID: ${id}`);
+    const conversation = await getSharedConversation(id);
 
     if (!conversation) {
-      logger.warn(`Conversation not found for ID: ${id}`);
+      logger.warn(`No conversation found for ID: ${id}`);
       return NextResponse.json(
-        { error: "Conversation not found" },
+        { error: "Shared conversation not found" },
         { status: 404 }
       );
     }
@@ -36,9 +36,9 @@ export async function GET(
     logger.info(`Successfully retrieved conversation for ID: ${id}`);
     return NextResponse.json({ messages: conversation });
   } catch (error) {
-    logger.error("Error fetching conversation:", error);
+    logger.error("Error fetching shared conversation:", error);
     return NextResponse.json(
-      { error: "Failed to fetch conversation" },
+      { error: "Failed to fetch shared conversation" },
       { status: 500 }
     );
   }
