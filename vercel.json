@@ -3,7 +3,13 @@
   "ignoreCommand": "npm run turbo-ignore",
   "functions": {
     "app/api/**/*": {
-      "maxDuration": 30
+      "maxDuration": 60
+    },
+    "app/utils/**/*": {
+      "maxDuration": 60
+    },
+    "lib/actions/**/*": {
+      "maxDuration": 60
     }
   }
 }
