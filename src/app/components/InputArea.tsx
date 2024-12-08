@@ -32,13 +32,15 @@ export default function InputArea({
       .map(segment => segment.content)
       .join(" ");
 
-    await onSend(messageContent);
-
-    // Clear the input
+    // Clear the input before sending to ensure immediate feedback
     if (inputRef.current) {
       inputRef.current.innerHTML = "";
+      inputRef.current.textContent = "";
       setMessage("");
     }
+
+    // Send the message after clearing
+    await onSend(messageContent);
   };
 
   const handleChipClick = async (
@@ -80,13 +82,13 @@ export default function InputArea({
             </a>
           ))}
         </div>
-        <div className="flex gap-2 sm:gap-3 items-center">
+        <div className="flex gap-2 sm:gap-3 items-end">
           <div
             ref={inputRef}
             contentEditable
             onInput={handleInput}
             onKeyPress={handleKeyPress}
-            className="flex-1 rounded-xl border border-gray-600 bg-[#40414f] px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-32 overflow-y-auto text-sm sm:text-base"
+            className="flex-1 rounded-xl border border-gray-600 bg-[#40414f] px-3 sm:px-4 py-2 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[40px] max-h-32 overflow-y-auto text-sm sm:text-base"
             data-placeholder="Type your message..."
             onPaste={e => {
               e.preventDefault();
@@ -157,9 +159,9 @@ export default function InputArea({
           <button
             onClick={handleSend}
             disabled={isLoading}
-            className="bg-blue-500 text-white px-4 sm:px-5 py-2 sm:py-3 rounded-xl hover:bg-blue-600 transition-all disabled:bg-blue-300 disabled:cursor-not-allowed text-sm sm:text-base"
+            className="flex-shrink-0 bg-blue-500 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl hover:bg-blue-600 transition-all disabled:bg-blue-300 disabled:cursor-not-allowed text-sm sm:text-base h-[40px] sm:h-auto"
           >
-            {isLoading ? "Sending..." : "Send"}
+            {isLoading ? "..." : "Send"}
           </button>
         </div>
       </div>
