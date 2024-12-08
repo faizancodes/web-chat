@@ -1,6 +1,5 @@
 {
   "buildCommand": "npm run build",
-  "ignoreCommand": "npm run turbo-ignore",
   "functions": {
     "app/api/**/*": {
       "maxDuration": 60
@@ -8,7 +7,7 @@
     "app/utils/**/*": {
       "maxDuration": 60
     },
-    "lib/actions/**/*": {
+    "src/lib/actions/**/*": {
       "maxDuration": 60
     }
   }
