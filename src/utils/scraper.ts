@@ -165,19 +165,19 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       } else {
         logger.info("Launching puppeteer-core browser on production");
         const puppeteer = await import("puppeteer-core");
-        
+
         // Log version information
         logger.info(`Node version: ${process.version}`);
-        
+
         // Get Chrome path from chromium-min
         const execPath = await chromium.executablePath();
         logger.info(`Chrome executable path: ${execPath}`);
 
         browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: await chromium.executablePath(),
+          headless: chromium.headless,
         });
       }
 
