@@ -1,6 +1,6 @@
 import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
-import { env } from "../../config/env";
+import { env } from "../../../config/env";
 import { scrapeUrl, urlPattern } from "@/utils/scraper";
 import { saveConversation } from "@/utils/redis";
 import { nanoid } from "nanoid";
@@ -173,7 +173,7 @@ export async function POST(req: Request) {
   } catch (error) {
     logger.error("Error processing chat request:", error);
     return NextResponse.json(
-      { error: "Failed to process the chat request" },
+      { error: `Failed to process the chat request: ${error}` },
       { status: 500 }
     );
   }

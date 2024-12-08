@@ -2,6 +2,8 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import { sanitizeUrl } from "@braintree/sanitize-url";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Message as MessageType } from "../types";
@@ -11,6 +13,12 @@ interface MessageProps {
 }
 
 export default function Message({ message }: MessageProps) {
+  const sanitizeHref = (href: string | undefined) => {
+    if (!href) return "#";
+    const sanitized = sanitizeUrl(href);
+    return sanitized === "about:blank" ? "#" : sanitized;
+  };
+
   return (
     <div
       className={`flex gap-2 mb-4 w-full ${
@@ -54,6 +62,7 @@ export default function Message({ message }: MessageProps) {
         >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeSanitize]}
             className={`prose max-w-none break-words ${
               message.role === "ai" ? "prose-invert" : "prose-white"
             }`}
@@ -123,9 +132,9 @@ export default function Message({ message }: MessageProps) {
               ),
               a: ({ children, href }) => (
                 <a
-                  href={href}
+                  href={sanitizeHref(href)}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener noreferrer nofollow"
                   className={`hover:underline break-all ${
                     message.role === "ai" ? "text-blue-400" : "text-blue-200"
                   }`}
@@ -134,6 +143,7 @@ export default function Message({ message }: MessageProps) {
                 </a>
               ),
             }}
+            skipHtml={true}
           >
             {message.content}
           </ReactMarkdown>

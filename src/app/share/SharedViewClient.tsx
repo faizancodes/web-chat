@@ -6,6 +6,10 @@ import "../../styles/animations.css";
 import { Message } from "../types";
 import Header from "../components/Header";
 import MessageList from "../components/MessageList";
+import {
+  handleSharedRequest,
+  handleContinueRequest,
+} from "@/lib/actions/api-handler";
 
 // ConversationLoader component to handle URL params and conversation loading
 function ConversationLoader({
@@ -31,9 +35,10 @@ function ConversationLoader({
 
 async function fetchSharedConversation(id: string): Promise<Message[] | null> {
   try {
-    const response = await fetch(`/api/shared/${id}`);
+    const response = await handleSharedRequest(id);
     if (response.ok) {
-      const data = await response.json();
+      const data = response.data;
+      if (!data) throw new Error("No data received");
       return data.messages;
     } else if (response.status !== 404) {
       console.error("Error fetching shared conversation");
@@ -56,15 +61,7 @@ export default function SharedViewClient() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/continue", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: messages,
-        }),
-      });
+      const response = await handleContinueRequest(messages);
 
       if (response.status === 429) {
         throw new Error("Rate limit exceeded. Please try again later.");
@@ -74,7 +71,8 @@ export default function SharedViewClient() {
         throw new Error("Failed to create new conversation");
       }
 
-      const data = await response.json();
+      const data = response.data;
+      if (!data) throw new Error("No data received");
       router.push(`/?id=${data.conversationId}`);
     } catch (error) {
       setError(

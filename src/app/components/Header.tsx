@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import ShareModal from "./ShareModal";
 import ShareButton from "./ShareButton";
+import { handleShareRequest } from "@/lib/actions/api-handler";
 
 // ShareUrlManager component to handle share URL logic
 function ShareUrlManager({
@@ -40,19 +41,15 @@ function HeaderContent({
     if (!conversationId) return;
 
     try {
-      const response = await fetch("/api/share", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ conversationId }),
-      });
+      const response = await handleShareRequest(conversationId);
 
       if (!response.ok) {
         throw new Error("Failed to create shared conversation");
       }
 
-      const { sharedId } = await response.json();
+      if (!response.data) throw new Error("No data received");
+
+      const { sharedId } = response.data;
       if (typeof window !== "undefined") {
         setShareUrl(`${window.location.origin}/share?id=${sharedId}`);
       }

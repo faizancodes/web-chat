@@ -84,6 +84,23 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
+    // Verify API key for API routes
+    if (pathname.startsWith("/api/")) {
+      const apiKey = request.headers.get("x-api-key");
+
+      if (!apiKey || apiKey !== process.env.API_KEY) {
+        logger.warn(
+          `Invalid or missing API key for IP: ${ip}, Path: ${pathname}`
+        );
+        return new NextResponse(null, {
+          status: 401,
+          statusText: "Unauthorized",
+        });
+      }
+
+      logger.debug("API key verified successfully");
+    }
+
     // Check rate limit
     const key = await createRateLimitKey(ip, pathname);
     const count = await redis.get(key);

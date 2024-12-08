@@ -8,6 +8,10 @@ import Header from "./Header";
 import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 import RateLimitBanner from "./RateLimitBanner";
+import {
+  handleChatRequest,
+  handleConversationRequest,
+} from "@/lib/actions/api-handler";
 
 // Component for handling search params
 function ConversationLoader({
@@ -33,9 +37,10 @@ function ConversationLoader({
 
 async function fetchConversation(id: string): Promise<Message[] | null> {
   try {
-    const response = await fetch(`/api/conversation/${id}`);
+    const response = await handleConversationRequest(id);
     if (response.ok) {
-      const data = await response.json();
+      const data = response.data;
+      if (!data) throw new Error("No data received");
       return data.messages;
     } else if (response.status !== 404) {
       console.error("Error fetching conversation");
@@ -91,22 +96,14 @@ export default function ClientPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: messageContent,
-          messages: messages,
-          conversationId,
-        }),
-      });
+      const response = await handleChatRequest(
+        messageContent,
+        messages,
+        conversationId
+      );
 
       if (response.status === 429) {
-        const retryAfter = parseInt(
-          response.headers.get("Retry-After") || "20"
-        );
+        const retryAfter = parseInt(response.headers["retry-after"] || "20");
         setRateLimitError(true);
         setRetryAfter(retryAfter);
         return;
@@ -116,7 +113,8 @@ export default function ClientPage() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = response.data;
+      if (!data) throw new Error("No data received");
 
       // Update conversation ID and URL
       if (data.conversationId && !conversationId) {
