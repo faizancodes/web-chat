@@ -156,12 +156,14 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       logger.info("Launching puppeteer browser");
 
       if (process.env.NODE_ENV === "development") {
+        logger.info("Launching puppeteer browser on development");
         const puppeteer = await import("puppeteer");
         browser = (await puppeteer.launch({
           args: ["--no-sandbox", "--disable-setuid-sandbox"],
           headless: true,
         })) as Browser;
       } else {
+        logger.info("Launching puppeteer-core browser on production");
         const puppeteer = await import("puppeteer-core");
         browser = await puppeteer.launch({
           args: chromium.args,
