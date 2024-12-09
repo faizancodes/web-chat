@@ -35,7 +35,11 @@ export async function getGroqResponse(
       `Attempting completion with model: ${currentModel}, retry: ${retryCount}`
     );
 
-    logger.debug("GROQ Messages:", messages);
+    logger.debug(
+      "GROQ Messages:",
+      messages.map(m => ({ role: m.role, length: m.content.length }))
+    );
+
     const completion = await groq.chat.completions.create({
       model: currentModel,
       messages: messages,

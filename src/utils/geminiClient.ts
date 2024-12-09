@@ -4,6 +4,11 @@ import { Logger } from "@/utils/logger";
 import { Message } from "./llmClient";
 const logger = new Logger("geminiClient");
 
+// Rate limits:
+// 15 RPM
+// 1 million TPM
+// 1,500 RPD
+
 const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b"];
 
 const MAX_RETRIES = 3;
@@ -29,7 +34,11 @@ async function tryWithRetries(
         `Attempting to generate content with model ${modelName} (attempt ${attempt + 1}/${maxRetries})`
       );
 
-      logger.debug("GEMINI Messages:", messages);
+      logger.debug(
+        "GEMINI Messages:",
+        messages.map(m => ({ role: m.role, length: m.content.length }))
+      );
+      // logger.debug("GEMINI Messages:", messages);
 
       const response = await openai.chat.completions.create({
         model: modelName,

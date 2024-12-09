@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { scrapeUrl, urlPattern } from "@/utils/scraper";
+import { ScrapedContent, scrapeUrl, urlPattern } from "@/utils/scraper";
 import { saveConversation } from "@/utils/redis";
 import { nanoid } from "nanoid";
 import { Logger } from "@/utils/logger";
@@ -26,12 +26,16 @@ export async function POST(req: Request) {
 
     logger.debug("Message history:", messages);
 
-    const googleResults = await getGoogleSearchResults(message, 5);
-    logger.info("Google results:", googleResults);
-
     // Extract URLs from the message
     const urls = message.match(urlPattern) || [];
     logger.info("Found URLs in message:", urls);
+
+    let googleResults: ScrapedContent[] = [];
+    if (urls.length === 0) {
+      logger.info("No URLs found in message, searching Google");
+      googleResults = await getGoogleSearchResults(message, 5);
+      logger.info("Google results:", googleResults);
+    }
 
     // Scrape all URLs in parallel
     const scrapedResults = await Promise.all(
@@ -72,11 +76,26 @@ export async function POST(req: Request) {
       content: msg.content,
     }));
 
+    const systemPrompt = `You are an expert who answers questions with the rigor and citation practices of scholarly research papers, while also being concise, clear, and conversational.
+    
+    Here are the rules for generating your responses:
+
+    - Format your responses in valid markdown
+    - Every single claim, fact, or statement must be supported by a citation to the provided sources
+    - Citations should be in academic format: According to [Source Name](URL), "relevant quote or paraphrase"
+    - If synthesizing multiple sources, cite them all: Research from [Source 1](URL1) and [Source 2](URL2) indicates...
+    - Include a "References" section at the end listing all cited sources
+    - Maintain a conversational tone
+    - Be explicit about source credibility and limitations
+    - If information is missing or sources are inadequate, acknowledge these gaps
+    - Never make claims without citation support
+    - Structure longer responses with clear headings and subheadings
+    `;
+
     const llmMessages = [
       {
         role: "system",
-        content:
-          "You are an expert at answering questions in a clear and concise manner. Always make sure your responses are in valid markdown format. Don't ever say 'Here is the answer in markdown format:' or anything like that. Just give the answer.",
+        content: systemPrompt,
       },
       ...chatHistory,
       {
