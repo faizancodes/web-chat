@@ -24,6 +24,7 @@ export const getPuppeteerOptions = () => {
     return exists;
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const launchOptions: any = {
     headless: "new", // Use new headless mode
     timeout: 60000, // Increase timeout to 60 seconds

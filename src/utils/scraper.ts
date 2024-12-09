@@ -182,6 +182,7 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
           return exists;
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const launchOptions: any = {
           headless: "new",
           timeout: 60000,

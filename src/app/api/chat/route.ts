@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ScrapedContent, scrapeUrl, urlPattern } from "@/utils/scraper";
+import { ScrapedContent, urlPattern } from "@/utils/scraper";
 import { saveConversation } from "@/utils/redis";
 import { nanoid } from "nanoid";
 import { Logger } from "@/utils/logger";

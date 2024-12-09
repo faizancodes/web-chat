@@ -8,10 +8,7 @@ import Header from "./Header";
 import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 import RateLimitBanner from "./RateLimitBanner";
-import {
-  handleChatRequest,
-  handleConversationRequest,
-} from "../api/actions/api-handler";
+import { handleConversationRequest } from "../api/actions/api-handler";
 
 // Component for handling search params
 function ConversationLoader({

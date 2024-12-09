@@ -1,7 +1,6 @@
 import { Browser } from "puppeteer";
 import { Logger } from "./logger";
 import { Browser as CoreBrowser } from "puppeteer-core";
-import { existsSync } from "fs";
 import { scrapeUrl, ScrapedContent } from "./scraper";
 import { getPuppeteerOptions } from "./puppeteerSetup";
 const logger = new Logger("googleSearch");
@@ -44,7 +43,7 @@ export async function searchGoogle(
     logger.info("Starting search results extraction");
     const searchResults = await page.evaluate((maxResults: number) => {
       const items = Array.from(document.querySelectorAll("div.g"));
-      return items.slice(0, maxResults).map((item, index) => {
+      return items.slice(0, maxResults).map(item => {
         const title = item.querySelector("h3")?.textContent || "";
         const link = item.querySelector("a")?.href || "";
         const description = item.querySelector("div.VwiC3b")?.textContent || "";
