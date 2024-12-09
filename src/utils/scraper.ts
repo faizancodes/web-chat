@@ -5,7 +5,6 @@ import { Redis } from "@upstash/redis";
 import { Logger } from "./logger";
 import { Browser as CoreBrowser } from "puppeteer-core";
 import { existsSync } from "fs";
-import { PuppeteerBrowserOptions } from "./puppeteerSetup";
 
 const logger = new Logger("scraper");
 
