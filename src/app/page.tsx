@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import ClientPage from "./components/ClientPage";
 import Header from "./components/Header";
 
+export const maxDuration = 30;
+
 export default function Home() {
   return (
     <Suspense

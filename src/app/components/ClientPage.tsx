@@ -13,8 +13,6 @@ import {
   handleConversationRequest,
 } from "../api/actions/api-handler";
 
-export const maxDuration = 30;
-
 // Component for handling search params
 function ConversationLoader({
   onConversationLoad,
