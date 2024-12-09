@@ -1,10 +1,10 @@
 {
   "buildCommand": "npm run build",
   "functions": {
-    "app/api/**/*": {
+    "src/app/api/**/*": {
       "maxDuration": 60
     },
-    "app/utils/**/*": {
+    "src/app/utils/**/*": {
       "maxDuration": 60
     }
   }

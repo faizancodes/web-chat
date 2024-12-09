@@ -8,9 +8,6 @@ import { Logger } from "@/utils/logger";
 
 const logger = new Logger("api/chat");
 
-export const maxDuration = 30; // 30 seconds maximum duration
-export const dynamic = "force-dynamic";
-
 const groq = new Groq({
   apiKey: env.GROQ_API_KEY,
 });
