@@ -79,7 +79,11 @@ export async function middleware(request: NextRequest) {
     logger.info(`Processing request from ${ip} to ${pathname}`);
 
     // Skip rate limiting for static assets
-    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico") {
+    if (
+      pathname.startsWith("/_next/") ||
+      pathname === "/favicon.ico" ||
+      pathname === "/api/chat-handler"
+    ) {
       logger.debug(`Skipping rate limit for static asset: ${pathname}`);
       return NextResponse.next();
     }
