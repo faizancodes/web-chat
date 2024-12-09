@@ -3,6 +3,7 @@
 import { useState, useRef, KeyboardEvent } from "react";
 import { Chip } from "../types";
 import { detectURLs, parseMessageContent } from "../utils";
+import { IoSendSharp } from "react-icons/io5";
 
 interface InputAreaProps {
   onSend: (message: string) => Promise<void>;
@@ -65,7 +66,7 @@ export default function InputArea({
   };
 
   return (
-    <div className="fixed bottom-0 w-full bg-[#343541] border-t border-gray-600 p-2 pb-safe sm:p-4">
+    <div className="fixed bottom-0 w-full backdrop-blur-md bg-[#343541]/80 border-t border-gray-600/50 p-2 pb-safe sm:p-4">
       <div className="max-w-3xl mx-auto px-2 sm:px-4">
         {/* Chips */}
         <div className="flex gap-2.5 mb-3 overflow-x-auto pb-2.5 hide-scrollbar">
@@ -76,7 +77,7 @@ export default function InputArea({
               onClick={e => handleChipClick(e, chip)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-[#40414f] text-blue-400 px-4 py-2 rounded-full text-sm hover:bg-[#4a4b59] transition-colors border border-gray-600 cursor-pointer whitespace-nowrap flex-shrink-0"
+              className="inline-block bg-[#40414f]/90 text-blue-400 px-4 py-2 rounded-full text-sm hover:bg-[#4a4b59] transition-all duration-200 border border-gray-600/50 cursor-pointer whitespace-nowrap flex-shrink-0 hover:scale-105"
             >
               {chip.text}
             </a>
@@ -88,7 +89,7 @@ export default function InputArea({
             contentEditable
             onInput={handleInput}
             onKeyPress={handleKeyPress}
-            className="flex-1 rounded-xl border border-gray-600 bg-[#40414f] px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-40 overflow-y-auto text-base"
+            className="flex-1 rounded-2xl border border-gray-600/50 bg-[#40414f]/90 backdrop-blur-sm px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent min-h-[48px] max-h-40 overflow-y-auto text-base transition-all duration-200 hover:bg-[#40414f]/95"
             data-placeholder="Type your message..."
             onPaste={e => {
               e.preventDefault();
@@ -152,16 +153,46 @@ export default function InputArea({
           <style jsx>{`
             div[contenteditable][data-placeholder]:empty:before {
               content: attr(data-placeholder);
-              color: #666;
-              font-style: italic;
+              color: rgba(255, 255, 255, 0.4);
+              font-style: normal;
+              pointer-events: none;
+              transition: all 0.2s ease;
+            }
+
+            .url-chip {
+              background: rgba(59, 130, 246, 0.1);
+              color: rgba(59, 130, 246, 0.9);
+              border-radius: 0.5rem;
+              transition: all 0.2s ease;
+            }
+
+            .url-chip:hover {
+              background: rgba(59, 130, 246, 0.15);
+              transform: translateY(-1px);
+            }
+
+            /* Hide scrollbar for Chrome, Safari and Opera */
+            .hide-scrollbar::-webkit-scrollbar {
+              display: none;
+            }
+
+            /* Hide scrollbar for IE, Edge and Firefox */
+            .hide-scrollbar {
+              -ms-overflow-style: none; /* IE and Edge */
+              scrollbar-width: none; /* Firefox */
             }
           `}</style>
           <button
             onClick={handleSend}
             disabled={isLoading}
-            className="flex-shrink-0 bg-blue-500 text-white px-5 py-3 rounded-xl hover:bg-blue-600 transition-all disabled:bg-blue-300 disabled:cursor-not-allowed text-base min-h-[48px] min-w-[64px] flex items-center justify-center"
+            className="flex-shrink-0 bg-blue-500/90 hover:bg-blue-600 text-white p-3 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-base min-h-[48px] min-w-[48px] flex items-center justify-center backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
+            aria-label="Send message"
           >
-            {isLoading ? "..." : "Send"}
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <IoSendSharp className="w-5 h-5 transform rotate-0" />
+            )}
           </button>
         </div>
       </div>

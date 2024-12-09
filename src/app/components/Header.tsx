@@ -60,21 +60,27 @@ function HeaderContent({
   };
 
   return (
-    <div className="w-full bg-gradient-to-r from-[#2a2b38] via-[#343541] to-[#2a2b38] border-b border-gray-600 p-4 shadow-lg">
+    <div className="sticky top-0 w-full backdrop-blur-md bg-[#2a2b38]/80 border-b border-gray-600/30 p-4 shadow-lg z-50">
       <div className="max-w-3xl mx-auto flex items-center justify-between px-4 sm:px-6 md:px-8">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center transform hover:rotate-12 transition-transform duration-300">
-            <Image src={Logo} alt="Logo" width={100} height={100} />
+        <div className="flex items-center space-x-4">
+          <div className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/10 flex items-center justify-center transform hover:scale-110 hover:rotate-6 transition-all duration-300 shadow-lg border border-white/10">
+            <Image
+              src={Logo}
+              alt="Logo"
+              width={100}
+              height={100}
+              className="w-8 h-8"
+            />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-wide hover:text-blue-400 transition-colors duration-300">
+            <h1 className="text-xl font-semibold text-white tracking-wide hover:text-blue-400 transition-colors duration-300 text-shadow">
               WebChat
             </h1>
-            <p className="text-sm text-gray-400">
-              Made with ❤️ by{"  "}
+            <p className="text-sm text-gray-300/90 font-light">
+              Made with ❤️ by{" "}
               <a
                 href="https://www.linkedin.com/in/faizancodes/"
-                className="text-blue-400 hover:text-blue-500 transition-colors duration-300"
+                className="text-blue-400 hover:text-blue-300 transition-colors duration-300 font-normal"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -83,11 +89,11 @@ function HeaderContent({
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           {onNewConversation && (
             <button
               onClick={onNewConversation}
-              className="flex items-center space-x-1.5 bg-gray-300 hover:bg-gray-300 text-black px-3 py-1.5 rounded-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-sm"
+              className="flex items-center space-x-2 backdrop-blur-sm bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-sm border border-white/10"
             >
               <svg
                 className="w-4 h-4"
