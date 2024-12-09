@@ -5,6 +5,8 @@ import { Logger } from "@/utils/logger";
 
 const logger = new Logger("make-api-request");
 
+export const maxDuration = 30;
+
 export type ApiResponse<T> = {
   data?: T;
   status: number;
