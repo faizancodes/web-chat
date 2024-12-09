@@ -6,8 +6,6 @@ import { Logger } from "@/utils/logger";
 
 const logger = new Logger("api-handler");
 
-export const maxDuration = 30;
-
 type ChatResponse = {
   reply: string;
   conversationId: string;
