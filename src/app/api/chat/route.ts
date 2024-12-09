@@ -5,7 +5,7 @@ import { scrapeUrl, urlPattern } from "@/utils/scraper";
 import { saveConversation } from "@/utils/redis";
 import { nanoid } from "nanoid";
 import { Logger } from "@/utils/logger";
-
+import { getGoogleSearchResults, searchGoogle } from "@/utils/googleSearch";
 const logger = new Logger("api/chat");
 
 const groq = new Groq({
@@ -95,6 +95,9 @@ export async function POST(req: Request) {
 
     logger.debug("Message history:", messages);
 
+    const googleResults = await getGoogleSearchResults(message, 5);
+    logger.info("Google results:", googleResults);
+
     // Extract URLs from the message
     const urls = message.match(urlPattern) || [];
     logger.info("Found URLs in message:", urls);
@@ -107,6 +110,18 @@ export async function POST(req: Request) {
     logger.debug("Scraped content from URLs:", scrapedResults);
 
     let userPrompt = `Here is my question: "${message}".`;
+
+    if (googleResults.length > 0) {
+      userPrompt += `\n\nHere are relevant search results:\n${googleResults
+        .map(
+          result =>
+            `Title: ${result.title}\n` +
+            `Link: ${result.url}\n` +
+            `Description: ${result.metaDescription}\n` +
+            `Content: ${result.content}\n---`
+        )
+        .join("\n")}`;
+    }
 
     if (scrapedResults.length > 0) {
       userPrompt += `\n\nHere is the information from the URLs:\n${scrapedResults

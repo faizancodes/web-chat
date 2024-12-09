@@ -4,6 +4,8 @@ import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 import { Logger } from "./logger";
 import { Browser as CoreBrowser } from "puppeteer-core";
+import { existsSync } from "fs";
+import { PuppeteerBrowserOptions } from "./puppeteerSetup";
 
 const logger = new Logger("scraper");
 
@@ -158,10 +160,54 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       if (process.env.NODE_ENV === "development") {
         logger.info("Launching puppeteer browser on development");
         const puppeteer = await import("puppeteer");
-        browser = (await puppeteer.launch({
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          headless: true,
-        })) as Browser;
+
+        // Try different possible Chrome/Chromium paths
+        const possiblePaths = [
+          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          "/Applications/Chromium.app/Contents/MacOS/Chromium",
+          "/opt/homebrew/bin/chromium",
+          "/usr/bin/google-chrome",
+        ];
+
+        logger.info(
+          `Checking for browser installations in ${possiblePaths.length} possible locations`
+        );
+        const chromePath = possiblePaths.find(path => {
+          const exists = existsSync(path);
+          logger.debug(
+            `Checking path: ${path} - ${exists ? "Found" : "Not found"}`
+          );
+          if (exists) {
+            logger.info(`Found browser at: ${path}`);
+          }
+          return exists;
+        });
+
+        const launchOptions: any = {
+          headless: "new",
+          timeout: 60000,
+          args: [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+          ],
+        };
+
+        if (chromePath) {
+          logger.info(`Using browser at path: ${chromePath}`);
+          launchOptions.executablePath = chromePath;
+        } else {
+          logger.info("Using bundled Chromium");
+        }
+
+        logger.info(
+          "Attempting to launch browser with options:",
+          JSON.stringify(launchOptions, null, 2)
+        );
+        browser = await puppeteer.launch(launchOptions);
+        logger.info("Browser launched successfully");
       } else {
         logger.info("Launching puppeteer-core browser on production");
         const puppeteer = await import("puppeteer-core");
