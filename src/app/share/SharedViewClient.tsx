@@ -11,6 +11,8 @@ import {
   handleContinueRequest,
 } from "../api/actions/api-handler";
 
+export const maxDuration = 30;
+
 // ConversationLoader component to handle URL params and conversation loading
 function ConversationLoader({
   onConversationLoad,

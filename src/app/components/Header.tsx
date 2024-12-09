@@ -8,6 +8,8 @@ import ShareModal from "./ShareModal";
 import ShareButton from "./ShareButton";
 import { handleShareRequest } from "../api/actions/api-handler";
 
+export const maxDuration = 30;
+
 // ShareUrlManager component to handle share URL logic
 function ShareUrlManager({
   onShareUrlChange,
