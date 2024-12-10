@@ -7,7 +7,9 @@ interface UseMessageHandlerProps {
 }
 
 export function useMessageHandler({
-  initialMessages = [],
+  initialMessages = [
+    { role: "ai", content: "Hello! How can I help you today?" },
+  ],
   onThreadsUpdate,
 }: UseMessageHandlerProps = {}) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -27,7 +29,15 @@ export function useMessageHandler({
         localStorage.getItem("chatThreads") || "[]"
       ) as ChatThread[];
 
-      const title = messages[0]?.content.slice(0, 30) + "..." || "New Chat";
+      // Find first non-placeholder message for title
+      const firstNonPlaceholderMessage = messages.find(
+        msg => msg.content !== "Hello! How can I help you today?"
+      );
+
+      const title = firstNonPlaceholderMessage
+        ? firstNonPlaceholderMessage.content.slice(0, 30) + "..."
+        : "New Chat";
+
       const lastMessage =
         messages[messages.length - 1]?.content.slice(0, 50) + "..." || "";
 

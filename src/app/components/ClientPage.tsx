@@ -62,7 +62,7 @@ export default function ClientPage() {
   }, []);
 
   const handleNewConversation = React.useCallback(() => {
-    setMessages([]);
+    setMessages([{ role: "ai", content: "Hello! How can I help you today?" }]);
     setCurrentChatId(null);
     window.history.pushState({}, "", "/");
   }, [setMessages, setCurrentChatId]);
