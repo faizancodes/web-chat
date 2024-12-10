@@ -1,34 +1,39 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import "../../styles/animations.css";
-import { Message } from "../types";
-import Header from "../components/Header";
-import MessageList from "../components/MessageList";
+import { Message } from "../../app/types";
+import Header from "../../app/components/Header";
+import MessageList from "../../app/components/MessageList";
 import {
   handleSharedRequest,
   handleContinueRequest,
-} from "../api/actions/api-handler";
+} from "../../app/api/actions/api-handler";
+import SharedViewSkeleton from "./SharedViewSkeleton";
 
 // ConversationLoader component to handle URL params and conversation loading
 function ConversationLoader({
   onConversationLoad,
+  onLoadingChange,
 }: {
   onConversationLoad: (messages: Message[]) => void;
+  onLoadingChange: (loading: boolean) => void;
 }) {
   const searchParams = useSearchParams();
 
   React.useEffect(() => {
     const id = searchParams.get("id");
     if (id) {
+      onLoadingChange(true);
       fetchSharedConversation(id).then(messages => {
         if (messages) {
           onConversationLoad(messages);
         }
+        onLoadingChange(false);
       });
     }
-  }, [searchParams, onConversationLoad]);
+  }, [searchParams, onConversationLoad, onLoadingChange]);
 
   return null;
 }
@@ -54,6 +59,7 @@ export default function SharedViewClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const router = useRouter();
 
   const handleContinueConversation = async () => {
@@ -92,22 +98,23 @@ export default function SharedViewClient() {
     []
   );
 
+  const handleLoadingChange = React.useCallback((loading: boolean) => {
+    setIsInitialLoading(loading);
+  }, []);
+
   return (
     <div className="flex flex-col h-screen bg-[#343541]">
       <Header />
-      <Suspense
-        fallback={
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-4 text-center text-gray-400">
-            Loading shared conversation...
-          </div>
-        }
-      >
-        <ConversationLoader onConversationLoad={handleConversationLoad} />
-      </Suspense>
+      <ConversationLoader
+        onConversationLoad={handleConversationLoad}
+        onLoadingChange={handleLoadingChange}
+      />
       {error ? (
         <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-4 text-center text-red-400">
           {error}
         </div>
+      ) : isInitialLoading ? (
+        <SharedViewSkeleton />
       ) : messages.length > 0 ? (
         <MessageList messages={messages} isLoading={false} />
       ) : null}
