@@ -66,8 +66,8 @@ export default function InputArea({
   };
 
   return (
-    <div className="fixed bottom-0 w-full backdrop-blur-md bg-[#343541]/80 border-t border-gray-600/50 p-2 pb-safe sm:p-4">
-      <div className="max-w-3xl mx-auto px-2 sm:px-4">
+    <div className="w-full backdrop-blur-md bg-[#343541]/80 border-t border-gray-600/50 p-2 pb-safe sm:p-4">
+      <div className="max-w-4xl mx-auto px-4">
         {/* Chips */}
         <div className="flex gap-2.5 mb-3 overflow-x-auto pb-2.5 hide-scrollbar">
           {initialChips.map((chip, index) => (

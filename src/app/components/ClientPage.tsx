@@ -47,6 +47,7 @@ export default function ClientPage() {
     sendMessage,
     setMessages,
     setCurrentChatId,
+    deleteThread,
   } = useMessageHandler({
     onThreadsUpdate: setThreads,
   });
@@ -64,6 +65,13 @@ export default function ClientPage() {
     setCurrentChatId(null);
     window.history.pushState({}, "", "/");
   }, [setMessages, setCurrentChatId]);
+
+  const handleDeleteThread = React.useCallback(
+    (threadId: string) => {
+      deleteThread(threadId);
+    },
+    [deleteThread]
+  );
 
   const handleConversationLoad = React.useCallback(
     (messages: Message[], id: string | null) => {
@@ -100,17 +108,23 @@ export default function ClientPage() {
       }
     >
       <div className="flex h-screen bg-[#343541]">
-        <ChatSidebar currentChatId={currentChatId} threads={threads} />
+        <ChatSidebar
+          currentChatId={currentChatId}
+          threads={threads}
+          onDeleteThread={handleDeleteThread}
+        />
         <div className="flex flex-col flex-1">
           <Header onNewConversation={handleNewConversation} />
           <ConversationLoader onConversationLoad={handleConversationLoad} />
           {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
-          <MessageList
-            messages={messages}
-            isLoading={isLoading}
-            searchStatus={searchStatus}
-            searchResults={searchResults}
-          />
+          <div className="flex-1 overflow-y-auto">
+            <MessageList
+              messages={messages}
+              isLoading={isLoading}
+              searchStatus={searchStatus}
+              searchResults={searchResults}
+            />
+          </div>
           <InputArea
             onSend={sendMessage}
             isLoading={isLoading}

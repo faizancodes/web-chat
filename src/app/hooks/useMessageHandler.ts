@@ -190,6 +190,25 @@ export function useMessageHandler({
     }
   }, [currentChatId]);
 
+  const deleteThread = useCallback(
+    (threadId: string) => {
+      const threads = JSON.parse(
+        localStorage.getItem("chatThreads") || "[]"
+      ) as ChatThread[];
+      const updatedThreads = threads.filter(t => t.id !== threadId);
+      localStorage.setItem("chatThreads", JSON.stringify(updatedThreads));
+      onThreadsUpdate?.(updatedThreads);
+
+      // If we're deleting the current thread, clear the current state
+      if (threadId === currentChatId) {
+        setMessages([]);
+        setCurrentChatId(null);
+        window.history.pushState({}, "", "/");
+      }
+    },
+    [currentChatId, onThreadsUpdate]
+  );
+
   return {
     messages,
     isLoading,
@@ -203,5 +222,6 @@ export function useMessageHandler({
     setMessages,
     setCurrentChatId,
     saveToLocalStorage,
+    deleteThread,
   };
 }
