@@ -1,7 +1,7 @@
 "use server";
 
-import { env } from "@/config/env";
-import { Logger } from "@/utils/logger";
+import { env } from "../../../config/env";
+import { Logger } from "../../../utils/logger";
 
 const logger = new Logger("make-api-request");
 
