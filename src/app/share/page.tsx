@@ -1,7 +1,7 @@
 import React, { Suspense } from "react";
 import SharedViewClient from "./SharedViewClient";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export default function SharePage() {
   return (

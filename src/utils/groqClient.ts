@@ -74,3 +74,75 @@ export async function getGroqResponse(
     throw new Error("All models and retries exhausted");
   }
 }
+
+interface WebSearchResponse {
+  requires_web_search: boolean;
+  confidence?: number;
+}
+
+export async function needsWebSearch(
+  question: string,
+  retryCount = 0
+): Promise<boolean> {
+  try {
+    logger.info(`Checking if question needs web search, retry: ${retryCount}`);
+
+    const messages: Message[] = [
+      {
+        role: "system",
+        content: `You are a classifier that determines if a question requires a web search in order to be answered accurately. 
+
+        Any question regarding real time events, current events, or anything that would not be known by a large language model trained on data up to 2023, so you should respond with true, otherwise respond with false.
+
+        Respond with a JSON object containing:
+        - requires_web_search: boolean
+        - confidence: number between 0 and 1
+        
+            Example output:
+            {
+              "requires_web_search": true,
+              "confidence": 0.95
+            }
+            
+            `,
+      },
+      {
+        role: "user",
+        content: `Question: ${question}`,
+      },
+    ];
+
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: messages,
+      response_format: { type: "json_object" },
+    });
+
+    if (!response.choices[0].message.content) {
+      throw new Error("Empty response from model");
+    }
+
+    const parsedResponse = JSON.parse(
+      response.choices[0].message.content
+    ) as WebSearchResponse;
+    logger.debug("Classification result:", parsedResponse);
+
+    return parsedResponse.requires_web_search;
+  } catch (error) {
+    logger.error(
+      "Error in needsWebSearch:",
+      error instanceof Error ? error.message : String(error)
+    );
+
+    // If we haven't exceeded retries, retry with exponential backoff
+    if (retryCount < MAX_RETRIES) {
+      const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
+      logger.info(`Retrying needsWebSearch after ${delay}ms...`);
+      await sleep(delay);
+      return needsWebSearch(question, retryCount + 1);
+    }
+
+    // Default to false if all retries are exhausted
+    return false;
+  }
+}

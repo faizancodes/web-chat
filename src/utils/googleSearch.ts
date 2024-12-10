@@ -28,7 +28,7 @@ export async function searchGoogle(
     const puppeteer = await import("puppeteer");
     logger.info("Puppeteer imported successfully");
 
-    const launchOptions = getPuppeteerOptions();
+    const launchOptions = await getPuppeteerOptions();
     browser = await puppeteer.launch(launchOptions);
     logger.info("Browser launched successfully");
     const page = await browser.newPage();

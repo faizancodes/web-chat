@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { ScrapedContent, urlPattern } from "@/utils/scraper";
+import { ScrapedContent, scrapeUrl, urlPattern } from "@/utils/scraper";
 import { saveConversation } from "@/utils/redis";
 import { nanoid } from "nanoid";
 import { Logger } from "@/utils/logger";
 import { searchGoogle, scrapeGoogleSearchResults } from "@/utils/googleSearch";
 import { getLLMResponse } from "@/utils/llmClient";
+import { needsWebSearch } from "@/utils/groqClient";
 
 const logger = new Logger("api/chat");
 
@@ -38,6 +39,8 @@ export async function POST(req: Request) {
       },
     });
 
+    let scrapedResults: ScrapedContent[] = [];
+
     // Background processing
     (async () => {
       try {
@@ -49,59 +52,84 @@ export async function POST(req: Request) {
           urls,
         });
 
-        let googleResults: ScrapedContent[] = [];
         if (urls.length === 0) {
-          logger.info(`Starting Google search`, {
+          // Check if web search is needed
+          const requiresWebSearch = await needsWebSearch(message);
+          logger.info(`Web search requirement check`, {
             conversationId: currentConversationId,
-            query: message,
+            requiresWebSearch,
           });
 
-          // Send searching status
-          await writer.write(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "status", content: "Searching Google..." })}\n\n`
-            )
-          );
+          if (requiresWebSearch) {
+            logger.info(`Starting Google search`, {
+              conversationId: currentConversationId,
+              query: message,
+            });
 
-          // Get search results
-          const searchResults = await searchGoogle(message, 5);
-          logger.info(`Google search completed`, {
-            conversationId: currentConversationId,
-            resultsCount: searchResults.length,
-          });
-
-          // Stream each search result as it's found
-          for (const result of searchResults) {
+            // Send searching status
             await writer.write(
               encoder.encode(
-                `data: ${JSON.stringify({
-                  type: "searchResult",
-                  content: {
-                    title: result.title,
-                    link: result.link,
-                    source: result.source,
-                  },
-                })}\n\n`
+                `data: ${JSON.stringify({ type: "status", content: "Searching Google..." })}\n\n`
               )
             );
+
+            // Get search results
+            const searchResults = await searchGoogle(message, 5);
+            logger.info(`Google search completed`, {
+              conversationId: currentConversationId,
+              resultsCount: searchResults.length,
+            });
+
+            // Stream each search result as it's found
+            for (const result of searchResults) {
+              await writer.write(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "searchResult",
+                    content: {
+                      title: result.title,
+                      link: result.link,
+                      source: result.source,
+                    },
+                  })}\n\n`
+                )
+              );
+            }
+
+            // Send scraping status
+            await writer.write(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "status", content: "Scraping search results..." })}\n\n`
+              )
+            );
+
+            logger.info(`Starting content scraping`, {
+              conversationId: currentConversationId,
+              urlsToScrape: searchResults.length,
+            });
+            scrapedResults = await scrapeGoogleSearchResults(searchResults);
+            logger.info(`Content scraping completed`, {
+              conversationId: currentConversationId,
+              scrapedResultsCount: scrapedResults.length,
+            });
           }
+        } else {
+          logger.info(`No web search required`, {
+            conversationId: currentConversationId,
+          });
 
-          // Send scraping status
-          await writer.write(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "status", content: "Scraping search results..." })}\n\n`
-            )
+          // Extract URLs from the message
+          const urls = message.match(urlPattern) || [];
+          logger.info("Found URLs in message:", urls);
+
+          logger.info(`Scraping URLs`, {
+            conversationId: currentConversationId,
+            urlsToScrape: urls.length,
+          });
+          // Scrape all URLs in parallel
+          scrapedResults = await Promise.all(
+            urls.map((url: string) => scrapeUrl(url))
           );
-
-          logger.info(`Starting content scraping`, {
-            conversationId: currentConversationId,
-            urlsToScrape: searchResults.length,
-          });
-          googleResults = await scrapeGoogleSearchResults(searchResults);
-          logger.info(`Content scraping completed`, {
-            conversationId: currentConversationId,
-            scrapedResultsCount: googleResults.length,
-          });
         }
 
         // Convert frontend messages to ChatMessage format
@@ -112,7 +140,7 @@ export async function POST(req: Request) {
 
         let userPrompt = `Here is my question: "${message}".`;
 
-        for (const result of googleResults) {
+        for (const result of scrapedResults) {
           userPrompt += `\n\nSource: ${result.url}\n\n${result.content}`;
         }
 
