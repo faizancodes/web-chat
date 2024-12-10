@@ -40,6 +40,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://webchat.so"),
 };
 
+// TODO: Make custom open graph image
 export default function RootLayout({
   children,
 }: Readonly<{
