@@ -156,13 +156,12 @@ export async function POST(req: Request) {
 
           - Format your responses in valid markdown
           - Every single claim, fact, or statement must be supported by a citation to the provided sources
-          - Citations should be in academic format: According to [Source Name](URL), "relevant quote or paraphrase"
+          - If only 1 source is provided, just cite it once in your response, theres no need to cite it multiple times
           - If synthesizing multiple sources, cite them all: Research from [Source 1](URL1) and [Source 2](URL2) indicates...
           - Include a "References" section at the end listing all cited sources
           - Maintain a conversational tone
           - Be explicit about source credibility and limitations
           - If information is missing or sources are inadequate, acknowledge these gaps
-          - Never make claims without citation support
           - Structure longer responses with clear headings and subheadings
           - If the question is subjective in nature, don't say something like "is subjective and depends on etc..", just generate a response and let the user decide
         `;
