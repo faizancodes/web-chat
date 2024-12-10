@@ -7,6 +7,7 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string(),
   RATE_LIMIT_SECRET: z.string(),
   API_KEY: z.string(),
+  GOOGLE_API_KEY: z.string(),
 });
 
 // Function to validate environment variables
@@ -18,6 +19,7 @@ const validateEnv = () => {
       UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
       RATE_LIMIT_SECRET: process.env.RATE_LIMIT_SECRET,
       API_KEY: process.env.API_KEY,
+      GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     });
     return parsed;
   } catch (error) {

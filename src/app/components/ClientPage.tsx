@@ -8,10 +8,7 @@ import Header from "./Header";
 import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 import RateLimitBanner from "./RateLimitBanner";
-import {
-  handleChatRequest,
-  handleConversationRequest,
-} from "../api/actions/api-handler";
+import { handleConversationRequest } from "../api/actions/api-handler";
 
 // Component for handling search params
 function ConversationLoader({
@@ -57,6 +54,14 @@ export default function ClientPage() {
     { role: "ai", content: "Hello! How can I help you today?" },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchStatus, setSearchStatus] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<
+    Array<{
+      title: string;
+      link: string;
+      source: string;
+    }>
+  >([]);
   const [rateLimitError, setRateLimitError] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -90,42 +95,55 @@ export default function ClientPage() {
     []
   );
 
-  const sendMessage = async (messageContent: string) => {
-    const userMessage = { role: "user" as const, content: messageContent };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
+  const processStreamingResponse = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>
+  ) => {
+    const decoder = new TextDecoder();
+    let buffer = "";
 
     try {
-      const response = await handleChatRequest(
-        messageContent,
-        messages,
-        conversationId
-      );
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      if (response.status === 429) {
-        const retryAfter = parseInt(response.headers["retry-after"] || "20");
-        setRateLimitError(true);
-        setRetryAfter(retryAfter);
-        return;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(5));
+              switch (data.type) {
+                case "status":
+                  setSearchStatus(data.content);
+                  break;
+                case "searchResult":
+                  setSearchResults(prev => [...prev, data.content]);
+                  break;
+                case "completion":
+                  setMessages(prev => [
+                    ...prev,
+                    { role: "ai", content: data.content },
+                  ]);
+                  setIsLoading(false);
+                  setSearchStatus("");
+                  setConversationId(data.conversationId);
+                  setSearchResults([]);
+                  const newUrl = `${window.location.pathname}?id=${data.conversationId}`;
+                  window.history.pushState({}, "", newUrl);
+                  break;
+                case "error":
+                  throw new Error(data.content);
+              }
+            } catch (e) {
+              console.error("Error parsing SSE message:", e);
+            }
+          }
+        }
       }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = response.data;
-      if (!data) throw new Error("No data received");
-
-      // Update conversation ID and URL
-      if (data.conversationId && !conversationId) {
-        setConversationId(data.conversationId);
-        const newUrl = `${window.location.pathname}?id=${data.conversationId}`;
-        window.history.pushState({}, "", newUrl);
-      }
-
-      setMessages(prev => [...prev, { role: "ai", content: data.reply }]);
-    } catch {
-      console.error("Error sending message");
+    } catch (error) {
+      console.error("Error reading stream:", error);
       setMessages(prev => [
         ...prev,
         {
@@ -133,8 +151,65 @@ export default function ClientPage() {
           content: "Sorry, there was an error processing your request.",
         },
       ]);
-    } finally {
       setIsLoading(false);
+      setSearchStatus("");
+      setSearchResults([]);
+    }
+  };
+
+  const sendMessage = async (messageContent: string) => {
+    const userMessage = { role: "user" as const, content: messageContent };
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+    setSearchStatus("");
+    setSearchResults([]);
+
+    try {
+      const response = await fetch("/api/chat-handler", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: messageContent,
+          messages,
+          conversationId,
+        }),
+      });
+
+      if (response.status === 429) {
+        const retryAfter = parseInt(
+          response.headers.get("retry-after") || "20"
+        );
+        setRateLimitError(true);
+        setRetryAfter(retryAfter);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+
+      await processStreamingResponse(reader);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "ai",
+          content: "Sorry, there was an error processing your request.",
+        },
+      ]);
+      setIsLoading(false);
+      setSearchStatus("");
+      setSearchResults([]);
     }
   };
 
@@ -153,7 +228,12 @@ export default function ClientPage() {
         <Header onNewConversation={handleNewConversation} />
         <ConversationLoader onConversationLoad={handleConversationLoad} />
         {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
-        <MessageList messages={messages} isLoading={isLoading} />
+        <MessageList
+          messages={messages}
+          isLoading={isLoading}
+          searchStatus={searchStatus}
+          searchResults={searchResults}
+        />
         <InputArea
           onSend={sendMessage}
           isLoading={isLoading}

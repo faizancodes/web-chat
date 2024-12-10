@@ -1,9 +1,9 @@
-import chromium from "@sparticuz/chromium-min";
 import { Browser } from "puppeteer";
 import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 import { Logger } from "./logger";
 import { Browser as CoreBrowser } from "puppeteer-core";
+import { getPuppeteerOptions } from "./puppeteerSetup";
 
 const logger = new Logger("scraper");
 
@@ -158,10 +158,11 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
       if (process.env.NODE_ENV === "development") {
         logger.info("Launching puppeteer browser on development");
         const puppeteer = await import("puppeteer");
-        browser = (await puppeteer.launch({
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          headless: true,
-        })) as Browser;
+
+        const launchOptions = await getPuppeteerOptions();
+        logger.info("Launching puppeteer browser on development");
+        browser = await puppeteer.launch(launchOptions);
+        logger.info("Browser launched successfully");
       } else {
         logger.info("Launching puppeteer-core browser on production");
         const puppeteer = await import("puppeteer-core");
@@ -169,33 +170,10 @@ export async function scrapeUrl(url: string): Promise<ScrapedContent> {
         // Log version information
         logger.info(`Node version: ${process.version}`);
 
-        browser = await puppeteer.launch({
-          args: [
-            ...chromium.args,
-            "--hide-scrollbars",
-            "--disable-web-security",
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--font-render-hinting=none",
-            "--disable-font-subpixel-positioning",
-            "--disable-font-antialiasing",
-            "--no-first-run",
-            "--disable-features=site-per-process",
-            "--disable-features=IsolateOrigins",
-            "--disable-features=site-isolation",
-            "--force-color-profile=srgb",
-            "--disable-remote-fonts",
-            "--disable-features=FontAccess",
-          ],
-          defaultViewport: chromium.defaultViewport,
-          executablePath: await chromium.executablePath(
-            `https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar`
-          ),
-          headless: chromium.headless,
-          ignoreDefaultArgs: ["--disable-extensions"],
-        });
+        logger.info("Getting puppeteer options on production");
+        const launchOptions = await getPuppeteerOptions();
+        logger.info("Launching puppeteer-core browser on production");
+        browser = await puppeteer.launch(launchOptions);
       }
 
       const page = await browser.newPage();

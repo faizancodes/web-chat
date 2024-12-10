@@ -1,16 +1,13 @@
-import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
-import { env } from "../../../config/env";
-import { scrapeUrl, urlPattern } from "@/utils/scraper";
+import { ScrapedContent, scrapeUrl, urlPattern } from "@/utils/scraper";
 import { saveConversation } from "@/utils/redis";
 import { nanoid } from "nanoid";
 import { Logger } from "@/utils/logger";
+import { searchGoogle, scrapeGoogleSearchResults } from "@/utils/googleSearch";
+import { getLLMResponse } from "@/utils/llmClient";
+import { needsWebSearch } from "@/utils/groqClient";
 
 const logger = new Logger("api/chat");
-
-const groq = new Groq({
-  apiKey: env.GROQ_API_KEY,
-});
 
 // Add type for the chat message
 type ChatMessage = {
@@ -18,157 +15,238 @@ type ChatMessage = {
   content: string;
 };
 
-type GroqMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
-};
-
-const MODELS: string[] = [
-  "llama-3.1-8b-instant",
-  "llama3-8b-8192",
-  "llama3-70b-8192",
-  "gemma2-9b-it",
-  "gemma-7b-it",
-];
-
-// Retry configuration
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 500;
-
-async function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function attemptCompletion(
-  messages: GroqMessage[],
-  currentModel: string,
-  retryCount = 0
-): Promise<string> {
-  try {
-    logger.info(
-      `Attempting completion with model: ${currentModel}, retry: ${retryCount}`
-    );
-    const completion = await groq.chat.completions.create({
-      model: currentModel,
-      messages: messages,
-    });
-    if (!completion.choices[0].message.content) {
-      throw new Error("Empty response from model");
-    }
-    return completion.choices[0].message.content;
-  } catch (error: unknown) {
-    logger.error(
-      `Error with model ${currentModel}:`,
-      error instanceof Error ? error.message : String(error)
-    );
-
-    // If we haven't exceeded retries for current model, retry with exponential backoff
-    if (retryCount < MAX_RETRIES) {
-      const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
-      logger.info(`Retrying with ${currentModel} after ${delay}ms...`);
-      await sleep(delay);
-      return attemptCompletion(messages, currentModel, retryCount + 1);
-    }
-
-    // If we've exhausted retries, try next model
-    const currentModelIndex = MODELS.indexOf(currentModel);
-    if (currentModelIndex < MODELS.length - 1) {
-      logger.warn(
-        `Falling back to next model: ${MODELS[currentModelIndex + 1]}`
-      );
-      return attemptCompletion(messages, MODELS[currentModelIndex + 1], 0);
-    }
-
-    throw new Error("All models and retries exhausted");
-  }
-}
-
 export async function POST(req: Request) {
+  const startTime = Date.now();
   try {
     const { message, messages = [], conversationId } = await req.json();
     logger.info(`Processing new chat request`, {
       conversationId: conversationId || "new",
+      messageLength: message.length,
+      existingMessagesCount: messages.length,
     });
 
-    // Generate a new conversation ID if not provided
-    const currentConversationId = conversationId || nanoid();
+    // Set up streaming response
+    const encoder = new TextEncoder();
+    const stream = new TransformStream();
+    const writer = stream.writable.getWriter();
 
-    logger.debug("Message history:", messages);
-
-    // Extract URLs from the message
-    const urls = message.match(urlPattern) || [];
-    logger.info("Found URLs in message:", urls);
-
-    // Scrape all URLs in parallel
-    const scrapedResults = await Promise.all(
-      urls.map((url: string) => scrapeUrl(url))
-    );
-
-    logger.debug("Scraped content from URLs:", scrapedResults);
-
-    let userPrompt = `Here is my question: "${message}".`;
-
-    if (scrapedResults.length > 0) {
-      userPrompt += `\n\nHere is the information from the URLs:\n${scrapedResults
-        .map(
-          result =>
-            `URL: ${result.url}\n` +
-            `Title: ${result.title}\n` +
-            `Description: ${result.metaDescription}\n` +
-            `Content: ${result.content}\n---`
-        )
-        .join("\n")}.\n Make sure your outputs are in valid markdown format.`;
-    }
-
-    // Convert frontend messages to Groq format
-    const chatHistory = messages.map((msg: ChatMessage) => ({
-      role: msg.role === "ai" ? "assistant" : "user",
-      content: msg.content,
-    }));
-
-    const groqMessages = [
-      {
-        role: "system",
-        content:
-          "You are an expert at answering questions in a clear and concise manner. Always make sure your responses are in valid markdown format. Don't ever say 'Here is the answer in markdown format:' or anything like that. Just give the answer.",
+    // Start the response
+    const response = new Response(stream.readable, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
-      ...chatHistory,
-      {
-        role: "user",
-        content: userPrompt,
-      },
-    ];
-
-    logger.debug("Prepared Groq messages for completion");
-
-    // Attempt completion with retries and fallbacks
-    const reply = await attemptCompletion(groqMessages, MODELS[0], 0);
-    logger.info("Successfully generated reply");
-
-    // Create updated messages array
-    const updatedMessages = [
-      ...messages,
-      { role: "user", content: message },
-      { role: "ai", content: reply },
-    ];
-
-    // Save the updated conversation
-    try {
-      await saveConversation(currentConversationId, updatedMessages);
-      logger.info("Saved conversation successfully", {
-        conversationId: currentConversationId,
-      });
-    } catch (error) {
-      logger.error("Error saving conversation:", error);
-    }
-
-    return NextResponse.json({
-      reply,
-      conversationId: currentConversationId,
-      scrapedContent: scrapedResults,
     });
+
+    let scrapedResults: ScrapedContent[] = [];
+
+    // Background processing
+    (async () => {
+      try {
+        const currentConversationId = conversationId || nanoid();
+        const urls = message.match(urlPattern) || [];
+        logger.info(`URL detection complete`, {
+          conversationId: currentConversationId,
+          urlsFound: urls.length,
+          urls,
+        });
+
+        if (urls.length === 0) {
+          // Check if web search is needed
+          const requiresWebSearch = await needsWebSearch(message);
+          logger.info(`Web search requirement check`, {
+            conversationId: currentConversationId,
+            requiresWebSearch,
+          });
+
+          if (requiresWebSearch) {
+            logger.info(`Starting Google search`, {
+              conversationId: currentConversationId,
+              query: message,
+            });
+
+            // Send searching status
+            await writer.write(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "status", content: "Searching Google..." })}\n\n`
+              )
+            );
+
+            // Get search results
+            const searchResults = await searchGoogle(message, 5);
+            logger.info(`Google search completed`, {
+              conversationId: currentConversationId,
+              resultsCount: searchResults.length,
+            });
+
+            // Stream each search result as it's found
+            for (const result of searchResults) {
+              await writer.write(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "searchResult",
+                    content: {
+                      title: result.title,
+                      link: result.link,
+                      source: result.source,
+                    },
+                  })}\n\n`
+                )
+              );
+            }
+
+            // Send scraping status
+            await writer.write(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "status", content: "Scraping search results..." })}\n\n`
+              )
+            );
+
+            logger.info(`Starting content scraping`, {
+              conversationId: currentConversationId,
+              urlsToScrape: searchResults.length,
+            });
+            scrapedResults = await scrapeGoogleSearchResults(searchResults);
+            logger.info(`Content scraping completed`, {
+              conversationId: currentConversationId,
+              scrapedResultsCount: scrapedResults.length,
+            });
+          }
+        } else {
+          logger.info(`No web search required`, {
+            conversationId: currentConversationId,
+          });
+
+          // Extract URLs from the message
+          const urls = message.match(urlPattern) || [];
+          logger.info("Found URLs in message:", urls);
+
+          logger.info(`Scraping URLs`, {
+            conversationId: currentConversationId,
+            urlsToScrape: urls.length,
+          });
+          // Scrape all URLs in parallel
+          scrapedResults = await Promise.all(
+            urls.map((url: string) => scrapeUrl(url))
+          );
+        }
+
+        // Convert frontend messages to ChatMessage format
+        const chatHistory = messages.map((msg: ChatMessage) => ({
+          role: msg.role === "ai" ? "assistant" : "user",
+          content: msg.content,
+        }));
+
+        let userPrompt = `Here is my question: "${message}".`;
+
+        for (const result of scrapedResults) {
+          userPrompt += `\n\nSource: ${result.url}\n\n${result.content}`;
+        }
+
+        logger.info(`Preparing LLM request`, {
+          conversationId: currentConversationId,
+          promptLength: userPrompt.length,
+          historyLength: chatHistory.length,
+        });
+
+        const systemPrompt = `You are an expert who answers questions with the rigor and citation practices of scholarly research papers, while also being concise, clear, and conversational.
+    
+          Here are the rules for generating your responses:
+
+          - Format your responses in valid markdown
+          - Every single claim, fact, or statement must be supported by a citation to the provided sources
+          - Citations should be in academic format: According to [Source Name](URL), "relevant quote or paraphrase"
+          - If synthesizing multiple sources, cite them all: Research from [Source 1](URL1) and [Source 2](URL2) indicates...
+          - Include a "References" section at the end listing all cited sources
+          - Maintain a conversational tone
+          - Be explicit about source credibility and limitations
+          - If information is missing or sources are inadequate, acknowledge these gaps
+          - Never make claims without citation support
+          - Structure longer responses with clear headings and subheadings
+          - If the question is subjective in nature, don't say something like "is subjective and depends on etc..", just generate a response and let the user decide
+        `;
+
+        const llmMessages = [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          ...chatHistory,
+          {
+            role: "user",
+            content: userPrompt,
+          },
+        ];
+
+        logger.info(`Sending request to LLM`, {
+          conversationId: currentConversationId,
+          messageCount: llmMessages.length,
+        });
+
+        const reply = await getLLMResponse(llmMessages);
+        logger.info(`Received LLM response`, {
+          conversationId: currentConversationId,
+          replyLength: reply.length,
+        });
+
+        // Send final response
+        await writer.write(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: "completion",
+              content: reply,
+              conversationId: currentConversationId,
+            })}\n\n`
+          )
+        );
+
+        // Save conversation
+        const updatedMessages = [
+          ...messages,
+          { role: "user", content: message },
+          { role: "ai", content: reply },
+        ];
+        await saveConversation(currentConversationId, updatedMessages);
+        logger.info("Chat request completed successfully", {
+          conversationId: currentConversationId,
+          processingTimeMs: Date.now() - startTime,
+          finalMessageCount: updatedMessages.length,
+        });
+        await writer.close();
+      } catch (error) {
+        const processingTime = Date.now() - startTime;
+        logger.error("Error in background processing:", {
+          error,
+          processingTimeMs: processingTime,
+          errorMessage:
+            error instanceof Error ? error.message : "Unknown error",
+          errorStack: error instanceof Error ? error.stack : undefined,
+        });
+        await writer.write(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: "error",
+              content:
+                error instanceof Error
+                  ? error.message
+                  : "An unknown error occurred",
+            })}\n\n`
+          )
+        );
+        await writer.close();
+      }
+    })();
+
+    return response;
   } catch (error) {
-    logger.error("Error processing chat request:", error);
+    const processingTime = Date.now() - startTime;
+    logger.error("Error in main request handler:", {
+      error,
+      processingTimeMs: processingTime,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: `Failed to process the chat request: ${error}` },
       { status: 500 }
