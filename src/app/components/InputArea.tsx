@@ -66,10 +66,10 @@ export default function InputArea({
   };
 
   return (
-    <div className="fixed bottom-0 w-full backdrop-blur-md bg-[#343541]/80 border-t border-gray-600/50 p-2 pb-safe sm:p-4">
-      <div className="max-w-3xl mx-auto px-2 sm:px-4">
+    <div className="w-full backdrop-blur-md bg-[#343541]/80 border-t border-gray-600/50 p-2 pb-safe sm:p-4">
+      <div className="max-w-4xl mx-auto px-2 sm:px-4">
         {/* Chips */}
-        <div className="flex gap-2.5 mb-3 overflow-x-auto pb-2.5 hide-scrollbar">
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-2 hide-scrollbar -mx-2 px-2">
           {initialChips.map((chip, index) => (
             <a
               key={index}
@@ -77,19 +77,19 @@ export default function InputArea({
               onClick={e => handleChipClick(e, chip)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-[#40414f]/90 text-blue-400 px-4 py-2 rounded-full text-sm hover:bg-[#4a4b59] transition-all duration-200 border border-gray-600/50 cursor-pointer whitespace-nowrap flex-shrink-0 hover:scale-105"
+              className="inline-block bg-[#40414f]/90 text-blue-400 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm hover:bg-[#4a4b59] transition-all duration-200 border border-gray-600/50 cursor-pointer whitespace-nowrap flex-shrink-0 hover:scale-105"
             >
               {chip.text}
             </a>
           ))}
         </div>
-        <div className="flex gap-2 sm:gap-3 items-end">
+        <div className="flex gap-2 items-end">
           <div
             ref={inputRef}
             contentEditable
             onInput={handleInput}
             onKeyPress={handleKeyPress}
-            className="flex-1 rounded-2xl border border-gray-600/50 bg-[#40414f]/90 backdrop-blur-sm px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent min-h-[48px] max-h-40 overflow-y-auto text-base transition-all duration-200 hover:bg-[#40414f]/95"
+            className="flex-1 rounded-2xl border border-gray-600/50 bg-[#40414f]/90 backdrop-blur-sm px-3 py-2 sm:px-4 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent min-h-[44px] max-h-40 overflow-y-auto text-sm sm:text-base transition-all duration-200 hover:bg-[#40414f]/95 break-words"
             data-placeholder="Type your message..."
             onPaste={e => {
               e.preventDefault();

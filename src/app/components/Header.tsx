@@ -29,8 +29,12 @@ function ShareUrlManager({
 // Create a wrapped header content component
 function HeaderContent({
   onNewConversation,
+  isSidebarOpen,
+  onToggleSidebar,
 }: {
   onNewConversation?: () => void;
+  isSidebarOpen: boolean;
+  onToggleSidebar: () => void;
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -60,23 +64,51 @@ function HeaderContent({
   };
 
   return (
-    <div className="sticky top-0 w-full backdrop-blur-md bg-[#2a2b38]/80 border-b border-gray-600/30 p-4 shadow-lg z-50">
-      <div className="max-w-3xl mx-auto flex items-center justify-between px-4 sm:px-6 md:px-8">
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/10 flex items-center justify-center transform hover:scale-110 hover:rotate-6 transition-all duration-300 shadow-lg border border-white/10">
+    <div className="sticky top-0 w-full backdrop-blur-md bg-[#2a2b38]/80 border-b border-gray-600/30 p-2 sm:p-4 shadow-lg z-50">
+      <div className="max-w-3xl mx-auto flex items-center justify-between px-2 sm:px-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
+          <button
+            onClick={onToggleSidebar}
+            className="lg:hidden -ml-1 p-1.5 rounded-md hover:bg-gray-700 focus:outline-none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-gray-200"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              {isSidebarOpen ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              )}
+            </svg>
+          </button>
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl backdrop-blur-sm bg-white/10 flex items-center justify-center transform hover:scale-110 hover:rotate-6 transition-all duration-300 shadow-lg border border-white/10">
             <Image
               src={Logo}
               alt="Logo"
               width={100}
               height={100}
-              className="w-8 h-8"
+              className="w-6 h-6 sm:w-8 sm:h-8"
             />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-white tracking-wide hover:text-blue-400 transition-colors duration-300 text-shadow">
+            <h1 className="text-lg sm:text-xl font-semibold text-white tracking-wide hover:text-blue-400 transition-colors duration-300 text-shadow">
               WebChat
             </h1>
-            <p className="text-sm text-gray-300/90 font-light">
+            <p className="text-xs sm:text-sm text-gray-300/90 font-light">
               Made with ❤️ by{" "}
               <a
                 href="https://www.linkedin.com/in/faizancodes/"
@@ -89,11 +121,11 @@ function HeaderContent({
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           {onNewConversation && (
             <button
               onClick={onNewConversation}
-              className="flex items-center space-x-2 backdrop-blur-sm bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-sm border border-white/10"
+              className="flex items-center space-x-1 sm:space-x-2 backdrop-blur-sm bg-white/10 hover:bg-white/20 text-white px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg text-sm border border-white/10"
             >
               <svg
                 className="w-4 h-4"
@@ -132,9 +164,13 @@ function HeaderContent({
 // Export the wrapped component
 export default function Header({
   onNewConversation,
+  isSidebarOpen,
+  onToggleSidebar,
 }: {
   onNewConversation?: () => void;
-} = {}) {
+  isSidebarOpen: boolean;
+  onToggleSidebar: () => void;
+}) {
   return (
     <Suspense
       fallback={
@@ -145,7 +181,11 @@ export default function Header({
         </div>
       }
     >
-      <HeaderContent onNewConversation={onNewConversation} />
+      <HeaderContent
+        onNewConversation={onNewConversation}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={onToggleSidebar}
+      />
     </Suspense>
   );
 }
