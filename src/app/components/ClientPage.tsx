@@ -36,6 +36,7 @@ function ConversationLoader({
 
 export default function ClientPage() {
   const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const {
     messages,
     isLoading,
@@ -99,25 +100,45 @@ export default function ClientPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-col h-screen bg-[#343541]">
-          <Header />
+        <div className="flex flex-col h-screen bg-[#343541] overflow-hidden">
           <div className="flex-1 flex items-center justify-center">
             <div className="text-gray-400">Loading...</div>
           </div>
         </div>
       }
     >
-      <div className="flex h-screen bg-[#343541]">
-        <ChatSidebar
-          currentChatId={currentChatId}
-          threads={threads}
-          onDeleteThread={handleDeleteThread}
-        />
-        <div className="flex flex-col flex-1">
-          <Header onNewConversation={handleNewConversation} />
+      <div className="flex h-screen bg-[#343541] overflow-hidden">
+        {/* Sidebar */}
+        <div
+          className={`${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-10 transition-transform duration-300 ease-in-out`}
+        >
+          <ChatSidebar
+            currentChatId={currentChatId}
+            threads={threads}
+            onDeleteThread={handleDeleteThread}
+            onNewConversation={handleNewConversation}
+          />
+        </div>
+
+        {/* Overlay */}
+        {isSidebarOpen && (
+          <div
+            className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[5]"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        <div className="flex flex-col flex-1 min-w-0">
+          <Header
+            onNewConversation={handleNewConversation}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          />
           <ConversationLoader onConversationLoad={handleConversationLoad} />
           {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <MessageList
               messages={messages}
               isLoading={isLoading}

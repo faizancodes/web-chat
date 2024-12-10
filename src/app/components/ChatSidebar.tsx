@@ -7,17 +7,19 @@ interface ChatSidebarProps {
   currentChatId?: string | null;
   threads: ChatThread[];
   onDeleteThread: (threadId: string) => void;
+  onNewConversation: () => void;
 }
 
 export default function ChatSidebar({
   currentChatId,
   threads,
   onDeleteThread,
+  onNewConversation,
 }: ChatSidebarProps) {
   return (
-    <div className="w-64 h-screen bg-[#202123] text-gray-200 p-2 overflow-y-auto flex flex-col">
-      <Link
-        href="/"
+    <div className="w-64 h-screen bg-[#202123] text-gray-200 p-2 overflow-y-auto flex flex-col shadow-lg">
+      <button
+        onClick={onNewConversation}
         className="w-full mb-4 p-3 rounded hover:bg-gray-700 flex items-center gap-3"
       >
         <svg
@@ -33,7 +35,7 @@ export default function ChatSidebar({
           />
         </svg>
         New Chat
-      </Link>
+      </button>
 
       <div className="space-y-2 flex-1">
         {threads.map(thread => (

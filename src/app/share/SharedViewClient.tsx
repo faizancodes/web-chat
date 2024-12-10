@@ -104,7 +104,7 @@ export default function SharedViewClient() {
 
   return (
     <div className="flex flex-col h-screen bg-[#343541]">
-      <Header />
+      <Header isSidebarOpen={false} onToggleSidebar={() => {}} />
       <ConversationLoader
         onConversationLoad={handleConversationLoad}
         onLoadingChange={handleLoadingChange}
