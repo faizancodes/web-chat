@@ -12,3 +12,11 @@ export type Chip = {
   text: string;
   url: string;
 };
+
+export type ChatThread = {
+  id: string;
+  title: string;
+  lastMessage: string;
+  timestamp: number;
+  messages: Message[];
+};

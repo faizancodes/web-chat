@@ -1,15 +1,16 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import "../../styles/animations.css";
-import { Message } from "../types";
+import { Message, ChatThread } from "../types";
 import Header from "./Header";
 import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 import RateLimitBanner from "./RateLimitBanner";
 import { fetchConversation } from "../api/services/conversation";
-import { useConversation } from "../hooks/useConversation";
+import { useMessageHandler } from "../hooks/useMessageHandler";
+import ChatSidebar from "./ChatSidebar";
 
 // Component for handling search params
 function ConversationLoader({
@@ -34,6 +35,7 @@ function ConversationLoader({
 }
 
 export default function ClientPage() {
+  const [threads, setThreads] = useState<ChatThread[]>([]);
   const {
     messages,
     isLoading,
@@ -41,10 +43,35 @@ export default function ClientPage() {
     searchResults,
     rateLimitError,
     retryAfter,
-    handleNewConversation,
-    handleConversationLoad,
+    currentChatId,
     sendMessage,
-  } = useConversation();
+    setMessages,
+    setCurrentChatId,
+  } = useMessageHandler({
+    onThreadsUpdate: setThreads,
+  });
+
+  // Load initial threads
+  useEffect(() => {
+    const storedThreads = localStorage.getItem("chatThreads");
+    if (storedThreads) {
+      setThreads(JSON.parse(storedThreads));
+    }
+  }, []);
+
+  const handleNewConversation = React.useCallback(() => {
+    setMessages([]);
+    setCurrentChatId(null);
+    window.history.pushState({}, "", "/");
+  }, [setMessages, setCurrentChatId]);
+
+  const handleConversationLoad = React.useCallback(
+    (messages: Message[], id: string | null) => {
+      setMessages(messages);
+      setCurrentChatId(id);
+    },
+    [setMessages, setCurrentChatId]
+  );
 
   const [initialChips] = React.useState([
     {
@@ -72,21 +99,24 @@ export default function ClientPage() {
         </div>
       }
     >
-      <div className="flex flex-col h-screen bg-[#343541]">
-        <Header onNewConversation={handleNewConversation} />
-        <ConversationLoader onConversationLoad={handleConversationLoad} />
-        {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
-        <MessageList
-          messages={messages}
-          isLoading={isLoading}
-          searchStatus={searchStatus}
-          searchResults={searchResults}
-        />
-        <InputArea
-          onSend={sendMessage}
-          isLoading={isLoading}
-          initialChips={initialChips}
-        />
+      <div className="flex h-screen bg-[#343541]">
+        <ChatSidebar currentChatId={currentChatId} threads={threads} />
+        <div className="flex flex-col flex-1">
+          <Header onNewConversation={handleNewConversation} />
+          <ConversationLoader onConversationLoad={handleConversationLoad} />
+          {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
+          <MessageList
+            messages={messages}
+            isLoading={isLoading}
+            searchStatus={searchStatus}
+            searchResults={searchResults}
+          />
+          <InputArea
+            onSend={sendMessage}
+            isLoading={isLoading}
+            initialChips={initialChips}
+          />
+        </div>
       </div>
     </Suspense>
   );
