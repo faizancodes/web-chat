@@ -81,7 +81,7 @@ export class Logger {
   }
 
   debug(message: string, data?: any) {
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "development") {
       const formattedData = this.formatMessage("debug", message, data);
       console.debug(
         this.colorize("gray", this.formatLogLevel("debug")) +
