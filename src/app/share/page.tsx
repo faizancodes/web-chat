@@ -41,6 +41,7 @@ export async function generateMetadata({
 
     const title = `WebChat: Shared Conversation`;
     const description = `View this shared conversation on WebChat: ${preview}...`;
+    const ogImageUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/og?id=${id}`;
 
     return {
       title,
@@ -52,7 +53,7 @@ export async function generateMetadata({
         type: "website",
         images: [
           {
-            url: `/api/og?id=${id}`,
+            url: ogImageUrl,
             width: 1200,
             height: 630,
             alt: "WebChat Conversation Preview",
@@ -63,7 +64,7 @@ export async function generateMetadata({
         card: "summary_large_image",
         title,
         description,
-        images: [`/api/og?id=${id}`],
+        images: [ogImageUrl],
       },
     };
   } catch (error) {
