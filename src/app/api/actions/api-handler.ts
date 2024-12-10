@@ -94,3 +94,10 @@ export async function handleContinueRequest(messages: Message[]) {
   });
   return response;
 }
+
+export async function getSharedConversation(id: string) {
+  const response = await makeApiRequest<ConversationResponse>(
+    `/api/shared/${id}`
+  );
+  return response;
+}
