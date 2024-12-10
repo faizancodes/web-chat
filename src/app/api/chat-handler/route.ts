@@ -5,9 +5,9 @@ import { Logger } from "@/utils/logger";
 const logger = new Logger("api/chat-handler");
 const API_KEY = env.API_KEY;
 const API_URL =
-  process.env.NODE_ENV === "production"
-    ? "https://www.webchat.so/api/chat"
-    : "http://localhost:3000/api/chat";
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000/api/chat"
+    : "https://www.webchat.so/api/chat";
 
 export async function POST(request: Request) {
   try {
