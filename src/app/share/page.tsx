@@ -31,33 +31,38 @@ export async function generateMetadata({
   try {
     const conversation = await getSharedConversation(id);
 
+    const messages = conversation.data?.messages || [];
     const preview =
-      conversation.data?.messages
-        ?.slice(0, 2)
+      messages
+        ?.slice(1, 3)
         ?.map((msg: Message) => msg.content)
         ?.join(" - ")
-        ?.slice(0, 150) || "";
+        ?.slice(0, 120) || "";
+
+    const title = `WebChat: Shared Conversation`;
+    const description = `View this shared conversation on WebChat: ${preview}...`;
 
     return {
-      title: `Shared Conversation - WebChat`,
-      description: `View this shared conversation on WebChat: ${preview}...`,
+      title,
+      description,
       openGraph: {
-        title: preview ? `${preview}...` : "Shared Conversation",
-        description: `View this shared conversation on WebChat: ${preview}...`,
+        title,
+        description,
+        siteName: "WebChat",
         type: "website",
         images: [
           {
             url: `/api/og?id=${id}`,
             width: 1200,
             height: 630,
-            alt: "Conversation Preview",
+            alt: "WebChat Conversation Preview",
           },
         ],
       },
       twitter: {
         card: "summary_large_image",
-        title: preview ? `${preview}...` : "Shared Conversation",
-        description: `View this shared conversation on WebChat: ${preview}...`,
+        title,
+        description,
         images: [`/api/og?id=${id}`],
       },
     };
