@@ -13,7 +13,7 @@ const redis = new Redis({
 
 // Rate limit configuration
 const RATE_LIMIT_WINDOW = 60; // 1 minute window for serverless functions
-const MAX_REQUESTS = 10; // maximum requests per window
+const MAX_REQUESTS = 20; // maximum requests per window
 
 // Helper function to get real IP
 function getSecureClientIP(request: NextRequest): string {
