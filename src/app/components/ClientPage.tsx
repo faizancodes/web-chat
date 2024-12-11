@@ -49,6 +49,8 @@ export default function ClientPage() {
     setMessages,
     setCurrentChatId,
     deleteThread,
+    setRateLimitError,
+    setRetryAfter,
   } = useMessageHandler({
     onThreadsUpdate: setThreads,
   });
@@ -137,7 +139,15 @@ export default function ClientPage() {
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
           <ConversationLoader onConversationLoad={handleConversationLoad} />
-          {rateLimitError && <RateLimitBanner retryAfter={retryAfter} />}
+          {rateLimitError && (
+            <RateLimitBanner
+              retryAfter={retryAfter}
+              onTimeUp={() => {
+                setRateLimitError(false);
+                setRetryAfter(0);
+              }}
+            />
+          )}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <MessageList
               messages={messages}
@@ -150,6 +160,7 @@ export default function ClientPage() {
             onSend={sendMessage}
             isLoading={isLoading}
             initialChips={initialChips}
+            disabled={rateLimitError}
           />
         </div>
       </div>

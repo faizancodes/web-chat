@@ -31,8 +31,10 @@ export interface InputAreaProps {
     text: string;
     url: string;
   }>;
+  disabled?: boolean;
 }
 
 export interface RateLimitBannerProps {
   retryAfter: number;
+  onTimeUp: () => void;
 }

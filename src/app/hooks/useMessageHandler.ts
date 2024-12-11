@@ -233,5 +233,7 @@ export function useMessageHandler({
     setCurrentChatId,
     saveToLocalStorage,
     deleteThread,
+    setRateLimitError,
+    setRetryAfter,
   };
 }
