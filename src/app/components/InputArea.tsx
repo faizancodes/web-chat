@@ -9,12 +9,14 @@ interface InputAreaProps {
   onSend: (message: string) => Promise<void>;
   isLoading: boolean;
   initialChips: Chip[];
+  disabled?: boolean;
 }
 
 export default function InputArea({
   onSend,
   isLoading,
   initialChips,
+  disabled = false,
 }: InputAreaProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [message, setMessage] = useState("");
@@ -74,10 +76,20 @@ export default function InputArea({
             <a
               key={index}
               href={chip.url}
-              onClick={e => handleChipClick(e, chip)}
+              onClick={e => {
+                if (disabled) {
+                  e.preventDefault();
+                  return;
+                }
+                handleChipClick(e, chip);
+              }}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-[#40414f]/90 text-blue-400 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm hover:bg-[#4a4b59] transition-all duration-200 border border-gray-600/50 cursor-pointer whitespace-nowrap flex-shrink-0 hover:scale-105"
+              className={`inline-block bg-[#40414f]/90 text-blue-400 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm hover:bg-[#4a4b59] transition-all duration-200 border border-gray-600/50 cursor-pointer whitespace-nowrap flex-shrink-0 hover:scale-105 ${
+                disabled
+                  ? "opacity-50 cursor-not-allowed pointer-events-none"
+                  : ""
+              }`}
             >
               {chip.text}
             </a>
@@ -86,11 +98,15 @@ export default function InputArea({
         <div className="flex gap-2 items-end">
           <div
             ref={inputRef}
-            contentEditable
+            contentEditable={!disabled}
             onInput={handleInput}
             onKeyPress={handleKeyPress}
-            className="flex-1 rounded-2xl border border-gray-600/50 bg-[#40414f]/90 backdrop-blur-sm px-3 py-2 sm:px-4 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent min-h-[44px] max-h-40 overflow-y-auto text-sm sm:text-base transition-all duration-200 hover:bg-[#40414f]/95 break-words"
-            data-placeholder="Type your message..."
+            className={`flex-1 rounded-2xl border border-gray-600/50 bg-[#40414f]/90 backdrop-blur-sm px-3 py-2 sm:px-4 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent min-h-[44px] max-h-40 overflow-y-auto text-sm sm:text-base transition-all duration-200 hover:bg-[#40414f]/95 break-words ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+            data-placeholder={
+              disabled ? "Rate limit exceeded..." : "Type your message..."
+            }
             onPaste={e => {
               e.preventDefault();
               const text = e.clipboardData.getData("text");
@@ -184,7 +200,7 @@ export default function InputArea({
           `}</style>
           <button
             onClick={handleSend}
-            disabled={isLoading}
+            disabled={isLoading || disabled}
             className="flex-shrink-0 bg-blue-500/90 hover:bg-blue-600 text-white p-3 rounded-2xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-base min-h-[48px] min-w-[48px] flex items-center justify-center backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95"
             aria-label="Send message"
           >
