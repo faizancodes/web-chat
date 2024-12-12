@@ -212,7 +212,13 @@ export async function POST(req: Request) {
           processingTimeMs: Date.now() - startTime,
           finalMessageCount: updatedMessages.length,
         });
+        logger.info("Attempting to close writer stream", {
+          conversationId: currentConversationId,
+        });
         await writer.close();
+        logger.info("Writer stream closed successfully", {
+          conversationId: currentConversationId,
+        });
       } catch (error) {
         const processingTime = Date.now() - startTime;
         logger.error("Error in background processing:", {
