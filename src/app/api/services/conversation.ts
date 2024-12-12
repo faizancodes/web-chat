@@ -1,5 +1,6 @@
 import { Message } from "../../types";
 import { handleConversationRequest } from "../actions/api-handler";
+import { streamChat } from "../actions/chat";
 
 export async function fetchConversation(id: string): Promise<Message[] | null> {
   try {
@@ -77,17 +78,6 @@ export async function sendMessage(
   messages: Message[],
   conversationId: string | null
 ) {
-  const response = await fetch("/api/chat-handler", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message: messageContent,
-      messages,
-      conversationId,
-    }),
-  });
-
+  const response = await streamChat(messageContent, messages, conversationId);
   return response;
 }
