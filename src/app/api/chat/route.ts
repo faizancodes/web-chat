@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     let scrapedResults: ScrapedContent[] = [];
 
     // Background processing
-    (async () => {
+    const backgroundProcess = (async () => {
       try {
         const currentConversationId = conversationId || nanoid();
         const urls = message.match(urlPattern) || [];
@@ -219,6 +219,7 @@ export async function POST(req: Request) {
         logger.info("Writer stream closed successfully", {
           conversationId: currentConversationId,
         });
+        return { success: true, conversationId: currentConversationId };
       } catch (error) {
         const processingTime = Date.now() - startTime;
         logger.error("Error in background processing:", {
@@ -240,13 +241,29 @@ export async function POST(req: Request) {
           )
         );
         await writer.close();
+        return { success: false, error };
       }
     })();
 
-    logger.info("Main handler returning response", {
+    // Log before returning the response
+    logger.info("Initiating streaming response", {
       startTime,
       processingTimeMs: Date.now() - startTime
     });
+
+    // Attach completion handler to the background process
+    backgroundProcess.then(result => {
+      logger.info("Request context complete", {
+        success: result.success,
+        processingTimeMs: Date.now() - startTime
+      });
+    }).catch(error => {
+      logger.error("Unexpected error in completion handler", {
+        error,
+        processingTimeMs: Date.now() - startTime
+      });
+    });
+
     return response;
   } catch (error) {
     const processingTime = Date.now() - startTime;
