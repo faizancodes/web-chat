@@ -243,6 +243,10 @@ export async function POST(req: Request) {
       }
     })();
 
+    logger.info("Main handler returning response", {
+      startTime,
+      processingTimeMs: Date.now() - startTime
+    });
     return response;
   } catch (error) {
     const processingTime = Date.now() - startTime;
