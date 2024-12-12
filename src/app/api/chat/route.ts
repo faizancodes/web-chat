@@ -30,12 +30,19 @@ export async function POST(req: Request) {
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
 
+    logger.info("Stream setup complete", {
+      startTime,
+      processingTimeMs: Date.now() - startTime
+    });
+
     // Start the response
     const response = new Response(stream.readable, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+        "Transfer-Encoding": "chunked"
       },
     });
 
@@ -215,6 +222,14 @@ export async function POST(req: Request) {
         logger.info("Attempting to close writer stream", {
           conversationId: currentConversationId,
         });
+
+        // After all processing and before closing
+        await writer.write(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: "done" })}\n\n`
+          )
+        );
+        
         await writer.close();
         logger.info("Writer stream closed successfully", {
           conversationId: currentConversationId,
