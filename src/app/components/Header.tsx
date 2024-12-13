@@ -69,7 +69,7 @@ function HeaderContent({
         <div className="flex items-center space-x-2 sm:space-x-4">
           <button
             onClick={onToggleSidebar}
-            className="lg:hidden -ml-1 p-1.5 rounded-md hover:bg-gray-700 focus:outline-none"
+            className="hidden sm:block lg:hidden -ml-1 p-1.5 rounded-md hover:bg-gray-700 focus:outline-none"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
