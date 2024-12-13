@@ -33,11 +33,19 @@ export async function processStreamingResponse(
 ) {
   const decoder = new TextDecoder();
   let buffer = "";
+  console.log("Starting to process streaming response");
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        console.log("Stream complete");
+        break;
+      }
+      
+      if (value) {
+        console.log("Received chunk of data");
+      }
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
@@ -45,6 +53,7 @@ export async function processStreamingResponse(
 
       for (const line of lines) {
         if (line.startsWith("data: ")) {
+          console.log("Processing SSE line:", line);
           try {
             const data = JSON.parse(line.slice(5));
             switch (data.type) {

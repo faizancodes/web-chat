@@ -52,6 +52,16 @@ export async function streamChat(
 
     logger.info("Successfully received chat API response");
 
+    // Verify response body is readable
+    if (!chatResponse.body) {
+      logger.error("Chat API response body is null");
+      throw new Error("Chat API response body is null");
+    }
+
+    logger.info("Response body is readable:", { 
+      isReadable: chatResponse.body.locked === false
+    });
+
     // Return the response body and status
     return {
       body: chatResponse.body,
