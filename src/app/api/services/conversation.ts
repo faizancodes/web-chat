@@ -1,6 +1,5 @@
 import { Message } from "../../types";
 import { handleConversationRequest } from "../actions/api-handler";
-import { streamChat } from "../actions/chat";
 import { Logger } from "@/utils/logger";
 
 const logger = new Logger("services/conversation");
@@ -45,7 +44,7 @@ export async function processStreamingResponse(
         logger.info("Stream complete");
         break;
       }
-      
+
       if (value) {
         logger.info("Received chunk of data", { bytes: value.length });
       }
@@ -56,8 +55,8 @@ export async function processStreamingResponse(
 
       for (const line of lines) {
         if (line.startsWith("data: ")) {
-          logger.info("Processing SSE line", { 
-            preview: line.slice(0, 100) + "..."
+          logger.info("Processing SSE line", {
+            preview: line.slice(0, 100) + "...",
           });
           try {
             const data = JSON.parse(line.slice(5));
@@ -72,8 +71,8 @@ export async function processStreamingResponse(
                 handlers.onSearchResult(data.content);
                 break;
               case "completion":
-                logger.info("Completion received", { 
-                  length: data.content.length 
+                logger.info("Completion received", {
+                  length: data.content.length,
                 });
                 handlers.onCompletion(data.content, data.conversationId);
                 break;
@@ -100,24 +99,35 @@ export async function sendMessage(
   messages: Message[],
   conversationId: string | null
 ) {
-  logger.info("Starting sendMessage", { 
+  logger.info("Starting sendMessage", {
     messageLength: messageContent.length,
     messagesCount: messages.length,
-    conversationId 
+    conversationId,
   });
-  
-  const response = await streamChat(messageContent, messages, conversationId);
-  
+
+  const response = await fetch("/api/chat-handler", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: messageContent,
+      messages,
+      conversationId,
+    }),
+  });
+
   if (!response.body) {
     logger.error("No response body received from streamChat");
     throw new Error("No response body received");
   }
-  
+
   logger.info("Received response from streamChat", {
     ok: response.ok,
     status: response.status,
-    hasBody: !!response.body
+    hasBody: !!response.body,
   });
-  
+
   return response;
 }

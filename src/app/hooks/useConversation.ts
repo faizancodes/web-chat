@@ -64,7 +64,9 @@ export function useConversation(): UseConversationReturn {
       );
 
       if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.retryAfter || "20");
+        const retryAfter = parseInt(
+          response.headers.get("retry-after") || "20"
+        );
         setRateLimitError(true);
         setRetryAfter(retryAfter);
         setIsLoading(false);

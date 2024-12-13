@@ -1,51 +1,24 @@
-import type { Metadata } from "next";
-import localFont from "next/font/local";
+"use client";
+
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
+import { useEffect } from "react";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "WebChat",
-  description: "A chat interface for the web",
-  openGraph: {
-    title: "WebChat",
-    description: "A chat interface for the web",
-    url: "https://webchat.so",
-    siteName: "WebChat",
-    type: "website",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "WebChat - A chat interface for the web",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "WebChat",
-    description: "A chat interface for the web",
-    images: ["/og-image.png"],
-  },
-  metadataBase: new URL("https://webchat.so"),
-};
+function SessionInitializer() {
+  useEffect(() => {
+    fetch("/api/auth/session", { credentials: "include" });
+  }, []);
+  return null;
+}
 
-// TODO: Make custom open graph image
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <head>
@@ -54,10 +27,11 @@ export default function RootLayout({
           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
         />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={inter.className}>
+        <Providers>
+          <SessionInitializer />
+          {children}
+        </Providers>
       </body>
     </html>
   );

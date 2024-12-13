@@ -13,7 +13,7 @@ const redis = new Redis({
 
 // Rate limit configuration
 const RATE_LIMIT_WINDOW = 60; // 1 minute window for serverless functions
-const MAX_REQUESTS = 20; // maximum requests per window
+const MAX_REQUESTS = 15; // maximum requests per window
 
 // Helper function to get real IP
 function getSecureClientIP(request: NextRequest): string {
@@ -84,8 +84,28 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Verify API key for API routes
-    if (pathname.startsWith("/api/")) {
+    // Special check for chat-handler route
+    if (pathname === "/api/chat-handler") {
+      const sessionCookie = request.cookies.get("session");
+      console.log("COOKIE", sessionCookie);
+      if (!sessionCookie) {
+        logger.warn(
+          `Missing session cookie for chat-handler request from IP: ${ip}`
+        );
+        return new NextResponse(null, {
+          status: 401,
+          statusText: "Unauthorized - Missing session cookie",
+        });
+      }
+      logger.debug("Session cookie verified for chat-handler");
+    }
+    // Allow session route without API key
+    else if (pathname === "/api/auth/session") {
+      logger.debug("Allowing session initialization request");
+      return NextResponse.next();
+    }
+    // Verify API key for other API routes
+    else if (pathname.startsWith("/api/")) {
       const apiKey = request.headers.get("x-api-key");
 
       if (!apiKey || apiKey !== process.env.API_KEY) {

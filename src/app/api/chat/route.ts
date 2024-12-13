@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     logger.info("Stream setup complete", {
       startTime,
-      processingTimeMs: Date.now() - startTime
+      processingTimeMs: Date.now() - startTime,
     });
 
     // Start the response
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
         "Access-Control-Allow-Origin": "*",
-        "Transfer-Encoding": "chunked"
+        "Transfer-Encoding": "chunked",
       },
     });
 
@@ -225,11 +225,9 @@ export async function POST(req: Request) {
 
         // After all processing and before closing
         await writer.write(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "done" })}\n\n`
-          )
+          encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`)
         );
-        
+
         await writer.close();
         logger.info("Writer stream closed successfully", {
           conversationId: currentConversationId,
@@ -263,21 +261,23 @@ export async function POST(req: Request) {
     // Log before returning the response
     logger.info("Initiating streaming response", {
       startTime,
-      processingTimeMs: Date.now() - startTime
+      processingTimeMs: Date.now() - startTime,
     });
 
     // Attach completion handler to the background process
-    backgroundProcess.then(result => {
-      logger.info("Request context complete", {
-        success: result.success,
-        processingTimeMs: Date.now() - startTime
+    backgroundProcess
+      .then(result => {
+        logger.info("Request context complete", {
+          success: result.success,
+          processingTimeMs: Date.now() - startTime,
+        });
+      })
+      .catch(error => {
+        logger.error("Unexpected error in completion handler", {
+          error,
+          processingTimeMs: Date.now() - startTime,
+        });
       });
-    }).catch(error => {
-      logger.error("Unexpected error in completion handler", {
-        error,
-        processingTimeMs: Date.now() - startTime
-      });
-    });
 
     return response;
   } catch (error) {

@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
 import { Message, ChatThread } from "../types";
-import { streamChat } from "../api/actions/chat";
 
 interface UseMessageHandlerProps {
   initialMessages?: Message[];
@@ -135,11 +134,33 @@ export function useMessageHandler({
           return updated;
         });
 
-        const response = await streamChat(message, messages, currentChatId);
+        const response = await fetch("/api/chat-handler", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message,
+            messages,
+            conversationId: currentChatId,
+          }),
+        });
+        if (response.status === 429) {
+          const retryAfter = parseInt(
+            response.headers.get("retry-after") || "20"
+          );
+          setRetryAfter(retryAfter);
+          setIsLoading(false);
+          setRateLimitError(true);
+          return;
+        }
 
         if (!response.ok) {
           if (response.status === 429) {
-            const retryAfter = parseInt(response.headers.retryAfter || "20");
+            const retryAfter = parseInt(
+              response.headers.get("retry-after") || "20"
+            );
             setRetryAfter(retryAfter);
             setIsLoading(false);
             setRateLimitError(true);
