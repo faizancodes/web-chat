@@ -26,18 +26,24 @@ export async function streamChat(
 
     logger.info("Making request to chat API", { message, conversationId });
 
-    // Make request to chat API
+    // Make request to chat API with streaming enabled
     const chatResponse = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": API_KEY || "",
+        // Explicitly request streaming response
+        Accept: "text/event-stream",
       },
       body: JSON.stringify({
         message,
         messages,
         conversationId,
       }),
+      // Enable streaming
+      cache: 'no-store',
+      // @ts-ignore - This is needed for streaming in Next.js server actions
+      duplex: 'half',
     });
 
     // Handle API response

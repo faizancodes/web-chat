@@ -1,6 +1,9 @@
 import { Message } from "../../types";
 import { handleConversationRequest } from "../actions/api-handler";
 import { streamChat } from "../actions/chat";
+import { Logger } from "@/utils/logger";
+
+const logger = new Logger("services/conversation");
 
 export async function fetchConversation(id: string): Promise<Message[] | null> {
   try {
@@ -33,18 +36,18 @@ export async function processStreamingResponse(
 ) {
   const decoder = new TextDecoder();
   let buffer = "";
-  console.log("Starting to process streaming response");
+  logger.info("Starting to process streaming response");
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
-        console.log("Stream complete");
+        logger.info("Stream complete");
         break;
       }
       
       if (value) {
-        console.log("Received chunk of data:", value.length, "bytes");
+        logger.info("Received chunk of data", { bytes: value.length });
       }
 
       buffer += decoder.decode(value, { stream: true });
@@ -53,37 +56,41 @@ export async function processStreamingResponse(
 
       for (const line of lines) {
         if (line.startsWith("data: ")) {
-          console.log("Processing SSE line:", line.slice(0, 100) + "...");
+          logger.info("Processing SSE line", { 
+            preview: line.slice(0, 100) + "..."
+          });
           try {
             const data = JSON.parse(line.slice(5));
-            console.log("Parsed SSE data type:", data.type);
+            logger.info("Parsed SSE data", { type: data.type });
             switch (data.type) {
               case "status":
-                console.log("Status update:", data.content);
+                logger.info("Status update", { content: data.content });
                 handlers.onStatus(data.content);
                 break;
               case "searchResult":
-                console.log("Search result received");
+                logger.info("Search result received");
                 handlers.onSearchResult(data.content);
                 break;
               case "completion":
-                console.log("Completion received, length:", data.content.length);
+                logger.info("Completion received", { 
+                  length: data.content.length 
+                });
                 handlers.onCompletion(data.content, data.conversationId);
                 break;
               case "error":
-                console.error("Error in stream:", data.content);
+                logger.error("Error in stream", new Error(data.content));
                 handlers.onError(new Error(data.content));
                 break;
             }
           } catch (e) {
-            console.error("Error parsing SSE message:", e);
+            logger.error("Error parsing SSE message", e as Error);
             handlers.onError(e as Error);
           }
         }
       }
     }
   } catch (error) {
-    console.error("Error in processStreamingResponse:", error);
+    logger.error("Error in processStreamingResponse", error as Error);
     handlers.onError(error as Error);
   }
 }
@@ -93,15 +100,20 @@ export async function sendMessage(
   messages: Message[],
   conversationId: string | null
 ) {
-  console.log("Starting sendMessage with content:", messageContent);
+  logger.info("Starting sendMessage", { 
+    messageLength: messageContent.length,
+    messagesCount: messages.length,
+    conversationId 
+  });
+  
   const response = await streamChat(messageContent, messages, conversationId);
   
   if (!response.body) {
-    console.error("No response body received from streamChat");
+    logger.error("No response body received from streamChat");
     throw new Error("No response body received");
   }
   
-  console.log("Received response from streamChat:", {
+  logger.info("Received response from streamChat", {
     ok: response.ok,
     status: response.status,
     hasBody: !!response.body
