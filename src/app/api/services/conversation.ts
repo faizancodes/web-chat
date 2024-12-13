@@ -44,7 +44,7 @@ export async function processStreamingResponse(
       }
       
       if (value) {
-        console.log("Received chunk of data");
+        console.log("Received chunk of data:", value.length, "bytes");
       }
 
       buffer += decoder.decode(value, { stream: true });
@@ -53,20 +53,25 @@ export async function processStreamingResponse(
 
       for (const line of lines) {
         if (line.startsWith("data: ")) {
-          console.log("Processing SSE line:", line);
+          console.log("Processing SSE line:", line.slice(0, 100) + "...");
           try {
             const data = JSON.parse(line.slice(5));
+            console.log("Parsed SSE data type:", data.type);
             switch (data.type) {
               case "status":
+                console.log("Status update:", data.content);
                 handlers.onStatus(data.content);
                 break;
               case "searchResult":
+                console.log("Search result received");
                 handlers.onSearchResult(data.content);
                 break;
               case "completion":
+                console.log("Completion received, length:", data.content.length);
                 handlers.onCompletion(data.content, data.conversationId);
                 break;
               case "error":
+                console.error("Error in stream:", data.content);
                 handlers.onError(new Error(data.content));
                 break;
             }
@@ -78,6 +83,7 @@ export async function processStreamingResponse(
       }
     }
   } catch (error) {
+    console.error("Error in processStreamingResponse:", error);
     handlers.onError(error as Error);
   }
 }
@@ -87,6 +93,19 @@ export async function sendMessage(
   messages: Message[],
   conversationId: string | null
 ) {
+  console.log("Starting sendMessage with content:", messageContent);
   const response = await streamChat(messageContent, messages, conversationId);
+  
+  if (!response.body) {
+    console.error("No response body received from streamChat");
+    throw new Error("No response body received");
+  }
+  
+  console.log("Received response from streamChat:", {
+    ok: response.ok,
+    status: response.status,
+    hasBody: !!response.body
+  });
+  
   return response;
 }
