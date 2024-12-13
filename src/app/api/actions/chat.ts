@@ -42,7 +42,7 @@ export async function streamChat(
       }),
       // Enable streaming
       cache: 'no-store',
-      // @ts-ignore - This is needed for streaming in Next.js server actions
+      // @ts-expect-error - Next.js extends the fetch options type but TypeScript doesn't know about it
       duplex: 'half',
     });
 
