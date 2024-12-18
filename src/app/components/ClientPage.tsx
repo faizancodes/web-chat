@@ -8,6 +8,7 @@ import Header from "./Header";
 import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 import RateLimitBanner from "./RateLimitBanner";
+import ErrorBanner from "./ErrorBanner";
 import { fetchConversation } from "../api/services/conversation";
 import { useMessageHandler } from "../hooks/useMessageHandler";
 import ChatSidebar from "./ChatSidebar";
@@ -27,12 +28,9 @@ function ConversationLoader({
   React.useEffect(() => {
     const id = searchParams.get("id");
     
-    // If there's no ID in the URL, ensure we're in a new conversation state
+    // If there's no ID in the URL, we don't need to do anything
+    // The handleNewConversation function will handle this case
     if (!id) {
-      // Only reset if we're not already in a new conversation state
-      if (currentChatId !== null) {
-        onConversationLoad([{ role: "ai", content: "Hello! How can I help you today?" }], null);
-      }
       return;
     }
     
@@ -101,18 +99,8 @@ export default function ClientPage() {
 
   const handleConversationLoad = React.useCallback(
     (messages: Message[], id: string | null) => {
-      // Always update messages when they're provided
-      if (messages) {
-        setMessages(messages);
-      }
-      
-      // Update the current chat ID
+      setMessages(messages);
       setCurrentChatId(id);
-      
-      // If this is a new conversation (id is null), ensure we're in a clean state
-      if (id === null) {
-        setMessages([{ role: "ai", content: "Hello! How can I help you today?" }]);
-      }
     },
     [setMessages, setCurrentChatId]
   );
@@ -190,9 +178,13 @@ export default function ClientPage() {
             />
           )}
           {error && (
-            <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 px-4 py-2 mb-4 rounded">
-              {error}
-            </div>
+            <ErrorBanner
+              message={error}
+              action={{
+                label: "Start New Chat",
+                onClick: handleNewConversation
+              }}
+            />
           )}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <MessageList

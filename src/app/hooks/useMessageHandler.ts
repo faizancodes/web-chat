@@ -28,6 +28,10 @@ export function useMessageHandler({
   const [error, setError] = useState<string | null>(null);
 
   const resetConversation = useCallback(() => {
+    // First, update the URL to remove the ID
+    window.history.pushState({}, "", "/");
+    
+    // Reset all states
     setMessages(initialMessages);
     setCurrentChatId(null);
     setConversationId(null);
@@ -36,7 +40,7 @@ export function useMessageHandler({
     setSearchStatus("");
     setIsProcessingStream(false);
     setShouldSkipFetch(false);
-    window.history.pushState({}, "", "/");
+    setIsLoading(false);
   }, [initialMessages]);
 
   // Load conversation securely
@@ -64,16 +68,21 @@ export function useMessageHandler({
         }]);
         setCurrentChatId(null);
         window.history.pushState({}, "", "/");
+        setError("We couldn't find this conversation. It may have been deleted or you might not have permission to view it.");
       }
     } catch (error) {
       console.error('Error loading conversation:', error);
       setMessages([{
         role: "ai",
-        content: error instanceof Error ? error.message : "Failed to load conversation"
+        content: "Failed to load conversation. Please try starting a new chat."
       }]);
       setCurrentChatId(null);
       window.history.pushState({}, "", "/");
-      setError(error instanceof Error ? error.message : "Failed to load conversation");
+      setError(
+        error instanceof Error && error.message.includes("Unauthorized")
+          ? "Please sign in to view this conversation."
+          : "We couldn't load this conversation. Please try starting a new chat."
+      );
     } finally {
       setIsLoading(false);
     }
