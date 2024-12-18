@@ -168,24 +168,31 @@ export default function ClientPage() {
             currentChatId={currentChatId}
             onError={handleError}
           />
-          {rateLimitError && (
-            <RateLimitBanner
-              retryAfter={retryAfter}
-              onTimeUp={() => {
-                setRateLimitError(false);
-                setRetryAfter(0);
-              }}
-            />
-          )}
-          {error && (
-            <ErrorBanner
-              message={error}
-              action={{
-                label: "Start New Chat",
-                onClick: handleNewConversation
-              }}
-            />
-          )}
+          
+          {/* Error Banners */}
+          <div className="relative z-10">
+            {rateLimitError && (
+              <RateLimitBanner
+                retryAfter={retryAfter}
+                onTimeUp={() => {
+                  setRateLimitError(false);
+                  setRetryAfter(0);
+                  setError(null);
+                }}
+              />
+            )}
+            {error && !rateLimitError && (
+              <ErrorBanner
+                message={error}
+                action={{
+                  label: "Start New Chat",
+                  onClick: handleNewConversation
+                }}
+              />
+            )}
+          </div>
+
+          {/* Main Content */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <MessageList
               messages={messages}
@@ -194,11 +201,14 @@ export default function ClientPage() {
               searchResults={searchResults}
             />
           </div>
+
+          {/* Input Area */}
           <InputArea
             onSend={sendMessage}
             isLoading={isLoading}
             initialChips={initialChips}
-            disabled={rateLimitError}
+            disabled={rateLimitError || isLoading}
+            placeholder={rateLimitError ? "Please wait before sending another message..." : "Type a message..."}
           />
         </div>
       </div>

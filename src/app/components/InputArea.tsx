@@ -10,6 +10,7 @@ interface InputAreaProps {
   isLoading: boolean;
   initialChips: Chip[];
   disabled?: boolean;
+  placeholder?: string;
 }
 
 export default function InputArea({
@@ -17,6 +18,7 @@ export default function InputArea({
   isLoading,
   initialChips,
   disabled = false,
+  placeholder = "",
 }: InputAreaProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [message, setMessage] = useState("");
@@ -104,9 +106,7 @@ export default function InputArea({
             className={`flex-1 rounded-2xl border border-gray-600/50 bg-[#40414f]/90 backdrop-blur-sm px-3 py-2 sm:px-4 sm:py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent min-h-[44px] max-h-40 overflow-y-auto text-sm sm:text-base transition-all duration-200 hover:bg-[#40414f]/95 break-words ${
               disabled ? "opacity-50 cursor-not-allowed" : ""
             }`}
-            data-placeholder={
-              disabled ? "Rate limit exceeded..." : "Type your message..."
-            }
+            data-placeholder={placeholder}
             onPaste={e => {
               e.preventDefault();
               const text = e.clipboardData.getData("text");

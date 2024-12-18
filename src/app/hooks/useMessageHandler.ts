@@ -80,7 +80,7 @@ export function useMessageHandler({
       window.history.pushState({}, "", "/");
       setError(
         error instanceof Error && error.message.includes("Unauthorized")
-          ? "Please sign in to view this conversation."
+          ? "You are not authorized to view this conversation."
           : "We couldn't load this conversation. Please try starting a new chat."
       );
     } finally {
@@ -222,12 +222,25 @@ export function useMessageHandler({
         });
 
         if (response.status === 429) {
+          // Get retry after value with fallback
           const retryAfter = parseInt(
-            response.headers.get("retry-after") || "20"
-          );
+            response.headers.get("retry-after") || "60"
+          ) || 60; // Fallback to 60 seconds if parsing fails
+          
+          // Update state for rate limit error
+          setRateLimitError(true);
           setRetryAfter(retryAfter);
           setIsLoading(false);
-          setRateLimitError(true);
+          
+          // Add system message about rate limit
+          setMessages(prev => [
+            ...prev,
+            {
+              role: "system" as const,
+              content: `Rate limit exceeded. Please wait ${retryAfter} seconds before sending another message.`
+            }
+          ]);
+          
           return;
         }
 
@@ -243,12 +256,18 @@ export function useMessageHandler({
         await processStreamingResponse(reader);
       } catch (error) {
         console.error("Error sending message:", error);
+        
+        // Handle the error gracefully
+        const errorMessage = error instanceof Error 
+          ? error.message
+          : "An unexpected error occurred";
+        
         setMessages(prev => {
           const updated = [
             ...prev,
             {
-              role: "ai" as const,
-              content: "Sorry, there was an error processing your request.",
+              role: "system" as const,
+              content: `Error: ${errorMessage}. Please try again in a moment.`,
             },
           ];
           if (currentChatId) {
@@ -256,7 +275,9 @@ export function useMessageHandler({
           }
           return updated;
         });
+        
         setIsLoading(false);
+        setError(errorMessage);
       }
     },
     [messages, currentChatId, saveToLocalStorage]

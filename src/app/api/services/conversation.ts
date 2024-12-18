@@ -27,7 +27,7 @@ export async function fetchConversation(id: string) {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(
-      response.status === 401 ? "Unauthorized: Please sign in" :
+      response.status === 401 ? "Unauthorized" :
       response.status === 403 ? "Access denied: You don't have permission to view this conversation" :
       response.status === 404 ? "Conversation not found" :
       errorData.error || `Failed to fetch conversation: ${response.status}`
@@ -98,7 +98,7 @@ export async function shareConversation(conversationId: string): Promise<string>
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(
-      response.status === 401 ? "Unauthorized: Please sign in" :
+      response.status === 401 ? "Unauthorized" :
       errorData.error || "Failed to share conversation"
     );
   }
