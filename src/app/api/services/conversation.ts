@@ -84,3 +84,25 @@ export async function processStreamingResponse(
     callbacks.onError(error);
   }
 }
+
+export async function shareConversation(conversationId: string): Promise<string> {
+  const response = await fetch("/api/share", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ conversationId }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      response.status === 401 ? "Unauthorized: Please sign in" :
+      errorData.error || "Failed to share conversation"
+    );
+  }
+
+  const data = await response.json();
+  return data.sharedId;
+}

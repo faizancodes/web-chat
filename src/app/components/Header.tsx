@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import ShareModal from "./ShareModal";
 import ShareButton from "./ShareButton";
-import { handleShareRequest } from "../api/actions/api-handler";
+import { shareConversation } from "../api/services/conversation";
 
 // ShareUrlManager component to handle share URL logic
 function ShareUrlManager({
@@ -38,29 +38,18 @@ function HeaderContent({
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
-  const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
 
-  const handleShare = async () => {
-    const conversationId = searchParams.get("id");
-    if (!conversationId) return;
-
-    try {
-      const response = await handleShareRequest(conversationId);
-
-      if (!response.ok) {
-        throw new Error("Failed to create shared conversation");
-      }
-
-      if (!response.data) throw new Error("No data received");
-
-      const { sharedId } = response.data;
-      if (typeof window !== "undefined") {
-        setShareUrl(`${window.location.origin}/share?id=${sharedId}`);
-      }
+  const handleShare = async (sharedId: string) => {
+    if (typeof window !== "undefined") {
+      setShareUrl(`${window.location.origin}/share?id=${sharedId}`);
       setIsModalOpen(true);
-    } catch (error) {
-      console.error("Error sharing conversation:", error);
     }
+  };
+
+  const handleError = (error: string) => {
+    setError(error);
+    setTimeout(() => setError(null), 3000); // Clear error after 3 seconds
   };
 
   return (
@@ -145,13 +134,17 @@ function HeaderContent({
             </button>
           )}
           <Suspense fallback={null}>
-            <ShareButton onShare={handleShare} />
+            <ShareButton onShared={handleShare} onError={handleError} />
           </Suspense>
         </div>
       </div>
-      <Suspense fallback={null}>
-        <ShareUrlManager onShareUrlChange={setShareUrl} />
-      </Suspense>
+      {error && (
+        <div className="max-w-3xl mx-auto mt-2 px-4">
+          <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 px-4 py-2 rounded text-sm">
+            {error}
+          </div>
+        </div>
+      )}
       <ShareModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

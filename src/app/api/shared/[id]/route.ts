@@ -34,7 +34,10 @@ export async function GET(
     }
 
     logger.info(`Successfully retrieved conversation for ID: ${id}`);
-    return NextResponse.json({ messages: conversation });
+    return NextResponse.json({
+      messages: conversation.messages,
+      metadata: conversation.metadata
+    });
   } catch (error) {
     logger.error("Error fetching shared conversation:", error);
     return NextResponse.json(

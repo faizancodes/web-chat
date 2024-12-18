@@ -34,6 +34,7 @@ export async function makeApiRequest<T>(
       },
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store",
+      credentials: "include",
     });
 
     logger.info(`Response received for ${endpoint}`, {
@@ -41,7 +42,27 @@ export async function makeApiRequest<T>(
       ok: response.ok,
     });
 
-    const data = await response.json();
+    if (response.status === 401) {
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+        ok: false,
+        error: "Unauthorized",
+      };
+    }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (error) {
+      logger.error(`Error parsing JSON response from ${endpoint}`, { error });
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+        ok: false,
+        error: "Invalid JSON response",
+      };
+    }
 
     return {
       data,

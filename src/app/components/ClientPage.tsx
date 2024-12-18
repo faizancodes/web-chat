@@ -101,15 +101,20 @@ export default function ClientPage() {
 
   const handleConversationLoad = React.useCallback(
     (messages: Message[], id: string | null) => {
-      // Don't update state if we're loading a new conversation (id is null)
-      // or if we're already in a new conversation state (currentChatId is null)
-      if (id === null || currentChatId === null) {
-        return;
+      // Always update messages when they're provided
+      if (messages) {
+        setMessages(messages);
       }
-      setMessages(messages);
+      
+      // Update the current chat ID
       setCurrentChatId(id);
+      
+      // If this is a new conversation (id is null), ensure we're in a clean state
+      if (id === null) {
+        setMessages([{ role: "ai", content: "Hello! How can I help you today?" }]);
+      }
     },
-    [setMessages, setCurrentChatId, currentChatId]
+    [setMessages, setCurrentChatId]
   );
 
   const handleError = React.useCallback((error: string) => {

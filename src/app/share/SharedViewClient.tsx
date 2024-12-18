@@ -49,8 +49,8 @@ async function fetchSharedConversation(id: string): Promise<Message[] | null> {
       console.error("Error fetching shared conversation");
     }
     return null;
-  } catch {
-    console.error("Error fetching shared conversation:");
+  } catch (error) {
+    console.error("Error fetching shared conversation:", error);
     return null;
   }
 }
@@ -60,27 +60,78 @@ export default function SharedViewClient() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isSessionInitialized, setIsSessionInitialized] = useState(false);
   const router = useRouter();
 
+  // Initialize session
+  React.useEffect(() => {
+    const initSession = async () => {
+      console.log("Starting session initialization...");
+      try {
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        console.log("Session response status:", response.status);
+        
+        if (!response.ok) {
+          throw new Error("Failed to initialize session");
+        }
+        
+        const data = await response.json();
+        console.log("Session initialized:", data);
+        setIsSessionInitialized(true);
+      } catch (error) {
+        console.error("Error initializing session:", error);
+        setError("Failed to initialize session. Please try again.");
+      }
+    };
+
+    initSession();
+  }, []);
+
   const handleContinueConversation = async () => {
+    if (!isSessionInitialized) {
+      setError("Please wait while we initialize your session...");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await handleContinueRequest(messages);
+      // Make direct fetch request instead of using handler
+      const response = await fetch("/api/continue", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages }),
+      });
 
+      console.log("Continue response status:", response.status);
+      
       if (response.status === 429) {
         throw new Error("Rate limit exceeded. Please try again later.");
       }
 
       if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Continue error response:", errorData);
         throw new Error("Failed to create new conversation");
       }
 
-      const data = response.data;
+      const data = await response.json();
+      console.log("Continue response data:", data);
+      
       if (!data) throw new Error("No data received");
       router.push(`/?id=${data.conversationId}`);
     } catch (error) {
+      console.error("Continue error:", error);
       setError(
         error instanceof Error
           ? error.message

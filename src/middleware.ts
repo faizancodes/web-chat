@@ -84,23 +84,28 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Special check for chat-handler route
+    // Special check for session-required routes
     if (pathname === "/api/chat-handler") {
       const sessionCookie = request.cookies.get("session");
       if (!sessionCookie) {
         logger.warn(
-          `Missing session cookie for chat-handler request from IP: ${ip}`
+          `Missing session cookie for ${pathname} request from IP: ${ip}`
         );
         return new NextResponse(null, {
           status: 401,
           statusText: "Unauthorized - Missing session cookie",
         });
       }
-      logger.debug("Session cookie verified for chat-handler");
+      logger.debug("Session cookie verified");
     }
-    // Allow session and conversation routes without API key
-    else if (pathname === "/api/auth/session" || pathname.startsWith("/api/conversation")) {
-      logger.debug("Allowing session/conversation request");
+    // Allow session, conversation, share, and continue routes without API key
+    else if (
+      pathname === "/api/auth/session" || 
+      pathname.startsWith("/api/conversation") || 
+      pathname === "/api/share" ||
+      pathname === "/api/continue"
+    ) {
+      logger.debug("Allowing session/conversation/share/continue request");
       return NextResponse.next();
     }
     // Verify API key for other API routes

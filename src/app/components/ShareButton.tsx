@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
+import { shareConversation } from "../api/services/conversation";
 
 interface ShareButtonProps {
-  onShare: () => Promise<void>;
+  onShare?: () => void;
+  onShared?: (sharedId: string) => void;
+  onError?: (error: string) => void;
 }
 
-export default function ShareButton({ onShare }: ShareButtonProps) {
+export default function ShareButton({ onShare, onShared, onError }: ShareButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -17,9 +20,20 @@ export default function ShareButton({ onShare }: ShareButtonProps) {
   if (!conversationId || pathname.startsWith("/share")) return null;
 
   const handleShare = async () => {
+    if (onShare) {
+      onShare();
+      return;
+    }
+
     setIsLoading(true);
-    await onShare();
-    setIsLoading(false);
+    try {
+      const sharedId = await shareConversation(conversationId);
+      onShared?.(sharedId);
+    } catch (error) {
+      onError?.(error instanceof Error ? error.message : "Failed to share conversation");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
