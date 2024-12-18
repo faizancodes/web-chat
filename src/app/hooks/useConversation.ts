@@ -14,7 +14,7 @@ interface UseConversationReturn {
   retryAfter: number;
   conversationId: string | null;
   handleNewConversation: () => void;
-  handleConversationLoad: (messages: Message[], id: string | null) => void;
+  handleConversationLoad: (id: string) => Promise<void>;
   sendMessage: (messageContent: string) => Promise<void>;
 }
 
@@ -41,13 +41,39 @@ export function useConversation(): UseConversationReturn {
     window.history.pushState({}, "", window.location.pathname);
   }, []);
 
-  const handleConversationLoad = useCallback(
-    (loadedMessages: Message[], id: string | null) => {
-      setMessages(loadedMessages);
-      setConversationId(id);
-    },
-    []
-  );
+  const handleConversationLoad = useCallback(async (id: string) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/conversation?id=${encodeURIComponent(id)}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Handle unauthorized access
+          handleNewConversation();
+          throw new Error('Unauthorized access to conversation');
+        }
+        throw new Error('Failed to load conversation');
+      }
+
+      const data = await response.json();
+      if (data.conversation) {
+        setMessages(data.conversation);
+        setConversationId(id);
+        const newUrl = `${window.location.pathname}?id=${id}`;
+        window.history.pushState({}, "", newUrl);
+      } else {
+        // Handle not found or access denied
+        handleNewConversation();
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      handleNewConversation();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [handleNewConversation]);
 
   const handleMessage = async (messageContent: string) => {
     const userMessage = { role: "user" as const, content: messageContent };
@@ -92,8 +118,10 @@ export function useConversation(): UseConversationReturn {
           setSearchStatus("");
           setConversationId(newConversationId);
           setSearchResults([]);
-          const newUrl = `${window.location.pathname}?id=${newConversationId}`;
-          window.history.pushState({}, "", newUrl);
+          if (newConversationId) {
+            const newUrl = `${window.location.pathname}?id=${newConversationId}`;
+            window.history.pushState({}, "", newUrl);
+          }
         },
         onError: error => {
           console.error("Error:", error);

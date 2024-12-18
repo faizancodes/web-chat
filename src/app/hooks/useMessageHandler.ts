@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Message, ChatThread } from "../types";
+import { fetchConversation } from "../api/services/conversation";
 
 interface UseMessageHandlerProps {
   initialMessages?: Message[];
@@ -22,6 +23,68 @@ export function useMessageHandler({
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [rateLimitError, setRateLimitError] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
+  const [isProcessingStream, setIsProcessingStream] = useState(false);
+  const [shouldSkipFetch, setShouldSkipFetch] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const resetConversation = useCallback(() => {
+    setMessages(initialMessages);
+    setCurrentChatId(null);
+    setConversationId(null);
+    setError(null);
+    setSearchResults([]);
+    setSearchStatus("");
+    setIsProcessingStream(false);
+    setShouldSkipFetch(false);
+    window.history.pushState({}, "", "/");
+  }, [initialMessages]);
+
+  // Load conversation securely
+  const loadConversation = useCallback(async (id: string) => {
+    if (shouldSkipFetch) {
+      setShouldSkipFetch(false);
+      return;
+    }
+    
+    setError(null);
+    try {
+      setIsLoading(true);
+      const conversation = await fetchConversation(id);
+      
+      if (conversation) {
+        setMessages(conversation);
+        setShouldSkipFetch(true); // Skip the next fetch that might be triggered by setCurrentChatId
+        setCurrentChatId(id);
+        setConversationId(id);
+      } else {
+        // Handle not found or access denied
+        setMessages([{
+          role: "ai",
+          content: "This conversation could not be loaded."
+        }]);
+        setCurrentChatId(null);
+        window.history.pushState({}, "", "/");
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      setMessages([{
+        role: "ai",
+        content: error instanceof Error ? error.message : "Failed to load conversation"
+      }]);
+      setCurrentChatId(null);
+      window.history.pushState({}, "", "/");
+      setError(error instanceof Error ? error.message : "Failed to load conversation");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [initialMessages]);
+
+  // Effect to load conversation when currentChatId changes
+  useEffect(() => {
+    if (currentChatId && !isProcessingStream && !shouldSkipFetch) {
+      loadConversation(currentChatId);
+    }
+  }, [currentChatId, loadConversation, isProcessingStream, shouldSkipFetch]);
 
   const saveToLocalStorage = useCallback(
     (messages: Message[], chatId: string) => {
@@ -65,6 +128,7 @@ export function useMessageHandler({
   const processStreamingResponse = async (
     reader: ReadableStreamDefaultReader<Uint8Array>
   ) => {
+    setIsProcessingStream(true);
     const decoder = new TextDecoder();
     let buffer = "";
 
@@ -97,6 +161,7 @@ export function useMessageHandler({
                     const updated = [...prev, newMessage];
                     if (data.conversationId) {
                       saveToLocalStorage(updated, data.conversationId);
+                      setShouldSkipFetch(true); // Skip fetch when setting new chat ID
                       setCurrentChatId(data.conversationId);
                       setConversationId(data.conversationId);
                       const newUrl = `${window.location.pathname}?id=${data.conversationId}`;
@@ -118,6 +183,9 @@ export function useMessageHandler({
     } catch (error) {
       console.error("Error processing stream:", error);
       setIsLoading(false);
+    } finally {
+      setIsProcessingStream(false);
+      setShouldSkipFetch(false);
     }
   };
 
@@ -128,9 +196,6 @@ export function useMessageHandler({
         const userMessage = { role: "user" as const, content: message };
         setMessages(prev => {
           const updated = [...prev, userMessage];
-          if (currentChatId) {
-            saveToLocalStorage(updated, currentChatId);
-          }
           return updated;
         });
 
@@ -146,6 +211,7 @@ export function useMessageHandler({
             conversationId: currentChatId,
           }),
         });
+
         if (response.status === 429) {
           const retryAfter = parseInt(
             response.headers.get("retry-after") || "20"
@@ -157,15 +223,6 @@ export function useMessageHandler({
         }
 
         if (!response.ok) {
-          if (response.status === 429) {
-            const retryAfter = parseInt(
-              response.headers.get("retry-after") || "20"
-            );
-            setRetryAfter(retryAfter);
-            setIsLoading(false);
-            setRateLimitError(true);
-            return;
-          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -196,18 +253,11 @@ export function useMessageHandler({
     [messages, currentChatId, saveToLocalStorage]
   );
 
-  // Load conversation from localStorage when currentChatId changes
-  useEffect(() => {
-    if (currentChatId) {
-      const threads = JSON.parse(
-        localStorage.getItem("chatThreads") || "[]"
-      ) as ChatThread[];
-      const thread = threads.find(t => t.id === currentChatId);
-      if (thread) {
-        setMessages(thread.messages);
-      }
-    }
-  }, [currentChatId]);
+  // Only save to localStorage after successful API operations
+  const updateLocalStorage = useCallback((messages: Message[], chatId: string) => {
+    if (!chatId) return;
+    saveToLocalStorage(messages, chatId);
+  }, [saveToLocalStorage]);
 
   const deleteThread = useCallback(
     (threadId: string) => {
@@ -237,6 +287,7 @@ export function useMessageHandler({
     currentChatId,
     rateLimitError,
     retryAfter,
+    error,
     sendMessage,
     setMessages,
     setCurrentChatId,
@@ -244,5 +295,7 @@ export function useMessageHandler({
     deleteThread,
     setRateLimitError,
     setRetryAfter,
+    setError,
+    resetConversation,
   };
 }

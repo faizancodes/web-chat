@@ -9,7 +9,22 @@ const inter = Inter({ subsets: ["latin"] });
 
 function SessionInitializer() {
   useEffect(() => {
-    fetch("/api/auth/session", { credentials: "include" });
+    const initSession = async () => {
+      try {
+        const response = await fetch("/api/auth/session", { 
+          credentials: "include",
+        });
+        if (!response.ok) {
+          console.error("Failed to initialize session");
+        }
+        const data = await response.json();
+        console.log("Session status:", data.status);
+      } catch (error) {
+        console.error("Error initializing session:", error);
+      }
+    };
+    
+    initSession();
   }, []);
   return null;
 }

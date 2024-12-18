@@ -1,53 +1,59 @@
-import { Message } from "../../types";
-import { handleConversationRequest } from "../actions/api-handler";
-import { Logger } from "@/utils/logger";
+import { Message } from "@/app/types";
 
-const logger = new Logger("services/conversation");
-
-export async function fetchConversation(id: string): Promise<Message[] | null> {
-  try {
-    const response = await handleConversationRequest(id);
-    if (response.ok) {
-      const data = response.data;
-      if (!data) throw new Error("No data received");
-      return data.messages;
-    } else if (response.status !== 404) {
-      console.error("Error fetching conversation");
-    }
-    return null;
-  } catch {
-    console.error("Error fetching conversation:");
-    return null;
-  }
+export async function sendMessage(
+  message: string,
+  messages: Message[],
+  conversationId: string | null
+) {
+  return fetch("/api/chat-handler", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message,
+      messages,
+      conversationId,
+    }),
+  });
 }
 
-interface StreamHandlers {
-  onStatus: (status: string) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onSearchResult: (result: any) => void;
-  onCompletion: (content: string, conversationId: string) => void;
-  onError: (error: Error) => void;
+export async function fetchConversation(id: string) {
+  const response = await fetch(`/api/conversation?id=${encodeURIComponent(id)}`, {
+    credentials: "include",
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      response.status === 401 ? "Unauthorized: Please sign in" :
+      response.status === 403 ? "Access denied: You don't have permission to view this conversation" :
+      response.status === 404 ? "Conversation not found" :
+      errorData.error || `Failed to fetch conversation: ${response.status}`
+    );
+  }
+  
+  const data = await response.json();
+  return data.conversation;
 }
 
 export async function processStreamingResponse(
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  handlers: StreamHandlers
+  callbacks: {
+    onStatus: (status: string) => void;
+    onSearchResult: (result: any) => void;
+    onCompletion: (content: string, conversationId: string | null) => void;
+    onError: (error: any) => void;
+  }
 ) {
   const decoder = new TextDecoder();
   let buffer = "";
-  logger.info("Starting to process streaming response");
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) {
-        logger.info("Stream complete");
-        break;
-      }
-
-      if (value) {
-        logger.info("Received chunk of data", { bytes: value.length });
-      }
+      if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
@@ -55,79 +61,26 @@ export async function processStreamingResponse(
 
       for (const line of lines) {
         if (line.startsWith("data: ")) {
-          logger.info("Processing SSE line", {
-            preview: line.slice(0, 100) + "...",
-          });
           try {
             const data = JSON.parse(line.slice(5));
-            logger.info("Parsed SSE data", { type: data.type });
             switch (data.type) {
               case "status":
-                logger.info("Status update", { content: data.content });
-                handlers.onStatus(data.content);
+                callbacks.onStatus(data.content);
                 break;
               case "searchResult":
-                logger.info("Search result received");
-                handlers.onSearchResult(data.content);
+                callbacks.onSearchResult(data.content);
                 break;
               case "completion":
-                logger.info("Completion received", {
-                  length: data.content.length,
-                });
-                handlers.onCompletion(data.content, data.conversationId);
-                break;
-              case "error":
-                logger.error("Error in stream", new Error(data.content));
-                handlers.onError(new Error(data.content));
+                callbacks.onCompletion(data.content, data.conversationId);
                 break;
             }
           } catch (e) {
-            logger.error("Error parsing SSE message", e as Error);
-            handlers.onError(e as Error);
+            console.error("Error parsing SSE message:", e);
           }
         }
       }
     }
   } catch (error) {
-    logger.error("Error in processStreamingResponse", error as Error);
-    handlers.onError(error as Error);
+    callbacks.onError(error);
   }
-}
-
-export async function sendMessage(
-  messageContent: string,
-  messages: Message[],
-  conversationId: string | null
-) {
-  logger.info("Starting sendMessage", {
-    messageLength: messageContent.length,
-    messagesCount: messages.length,
-    conversationId,
-  });
-
-  const response = await fetch("/api/chat-handler", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message: messageContent,
-      messages,
-      conversationId,
-    }),
-  });
-
-  if (!response.body) {
-    logger.error("No response body received from streamChat");
-    throw new Error("No response body received");
-  }
-
-  logger.info("Received response from streamChat", {
-    ok: response.ok,
-    status: response.status,
-    hasBody: !!response.body,
-  });
-
-  return response;
 }

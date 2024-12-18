@@ -87,7 +87,6 @@ export async function middleware(request: NextRequest) {
     // Special check for chat-handler route
     if (pathname === "/api/chat-handler") {
       const sessionCookie = request.cookies.get("session");
-      console.log("COOKIE", sessionCookie);
       if (!sessionCookie) {
         logger.warn(
           `Missing session cookie for chat-handler request from IP: ${ip}`
@@ -99,9 +98,9 @@ export async function middleware(request: NextRequest) {
       }
       logger.debug("Session cookie verified for chat-handler");
     }
-    // Allow session route without API key
-    else if (pathname === "/api/auth/session") {
-      logger.debug("Allowing session initialization request");
+    // Allow session and conversation routes without API key
+    else if (pathname === "/api/auth/session" || pathname.startsWith("/api/conversation")) {
+      logger.debug("Allowing session/conversation request");
       return NextResponse.next();
     }
     // Verify API key for other API routes

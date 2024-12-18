@@ -15,21 +15,43 @@ import ChatSidebar from "./ChatSidebar";
 // Component for handling search params
 function ConversationLoader({
   onConversationLoad,
+  currentChatId,
+  onError,
 }: {
   onConversationLoad: (messages: Message[], id: string | null) => void;
+  currentChatId: string | null;
+  onError: (error: string) => void;
 }) {
   const searchParams = useSearchParams();
 
   React.useEffect(() => {
     const id = searchParams.get("id");
-    if (id) {
-      fetchConversation(id).then(messages => {
-        if (messages) {
-          onConversationLoad(messages, id);
-        }
-      });
+    
+    // If there's no ID in the URL, ensure we're in a new conversation state
+    if (!id) {
+      // Only reset if we're not already in a new conversation state
+      if (currentChatId !== null) {
+        onConversationLoad([{ role: "ai", content: "Hello! How can I help you today?" }], null);
+      }
+      return;
     }
-  }, [searchParams, onConversationLoad]);
+    
+    // Only fetch if we have a different conversation ID
+    if (id !== currentChatId) {
+      fetchConversation(id)
+        .then(messages => {
+          if (messages) {
+            onConversationLoad(messages, id);
+          }
+        })
+        .catch(error => {
+          onError(error instanceof Error ? error.message : "Failed to load conversation");
+          // Reset URL and conversation state
+          window.history.pushState({}, "", "/");
+          onConversationLoad([{ role: "ai", content: "Hello! How can I help you today?" }], null);
+        });
+    }
+  }, [searchParams, onConversationLoad, currentChatId, onError]);
 
   return null;
 }
@@ -45,12 +67,15 @@ export default function ClientPage() {
     rateLimitError,
     retryAfter,
     currentChatId,
+    error,
     sendMessage,
     setMessages,
     setCurrentChatId,
     deleteThread,
     setRateLimitError,
     setRetryAfter,
+    setError,
+    resetConversation,
   } = useMessageHandler({
     onThreadsUpdate: setThreads,
   });
@@ -64,10 +89,8 @@ export default function ClientPage() {
   }, []);
 
   const handleNewConversation = React.useCallback(() => {
-    setMessages([{ role: "ai", content: "Hello! How can I help you today?" }]);
-    setCurrentChatId(null);
-    window.history.pushState({}, "", "/");
-  }, [setMessages, setCurrentChatId]);
+    resetConversation();
+  }, [resetConversation]);
 
   const handleDeleteThread = React.useCallback(
     (threadId: string) => {
@@ -78,11 +101,20 @@ export default function ClientPage() {
 
   const handleConversationLoad = React.useCallback(
     (messages: Message[], id: string | null) => {
+      // Don't update state if we're loading a new conversation (id is null)
+      // or if we're already in a new conversation state (currentChatId is null)
+      if (id === null || currentChatId === null) {
+        return;
+      }
       setMessages(messages);
       setCurrentChatId(id);
     },
-    [setMessages, setCurrentChatId]
+    [setMessages, setCurrentChatId, currentChatId]
   );
+
+  const handleError = React.useCallback((error: string) => {
+    setError(error);
+  }, [setError]);
 
   const [initialChips] = React.useState([
     {
@@ -138,7 +170,11 @@ export default function ClientPage() {
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
-          <ConversationLoader onConversationLoad={handleConversationLoad} />
+          <ConversationLoader 
+            onConversationLoad={handleConversationLoad} 
+            currentChatId={currentChatId}
+            onError={handleError}
+          />
           {rateLimitError && (
             <RateLimitBanner
               retryAfter={retryAfter}
@@ -147,6 +183,11 @@ export default function ClientPage() {
                 setRetryAfter(0);
               }}
             />
+          )}
+          {error && (
+            <div className="bg-red-500 bg-opacity-10 border border-red-500 text-red-500 px-4 py-2 mb-4 rounded">
+              {error}
+            </div>
           )}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <MessageList
