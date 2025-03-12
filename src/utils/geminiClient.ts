@@ -2,6 +2,7 @@ import { env } from "@/config/env";
 import OpenAI from "openai";
 import { Logger } from "@/utils/logger";
 import { Message } from "./llmClient";
+
 const logger = new Logger("geminiClient");
 
 // Rate limits:
@@ -9,7 +10,12 @@ const logger = new Logger("geminiClient");
 // 1 million TPM
 // 1,500 RPD
 
-const GEMINI_MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b"];
+const GEMINI_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-2.0-flash-exp",
+];
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
