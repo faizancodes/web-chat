@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { Redis } from "@upstash/redis";
 import { Logger } from "./utils/logger";
+import { env } from "./config/env";
+import { redis } from "./utils/redis";
 
 const logger = new Logger("middleware");
-
-// Initialize Redis client
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL || "",
-  token: process.env.UPSTASH_REDIS_REST_TOKEN || "",
-});
 
 // Rate limit configuration
 const RATE_LIMIT_WINDOW = 60; // 1 minute window for serverless functions
 const MAX_REQUESTS = 15; // maximum requests per window
+const SESSION_COOKIE_NAME = "web-chat-session-id"; // Match the name in auth/session/route.ts
 
 // Helper function to get real IP
 function getSecureClientIP(request: NextRequest): string {
@@ -56,19 +52,102 @@ function isValidIP(ip: string): boolean {
   return ipv4Regex.test(ip) || ipv6Regex.test(ip);
 }
 
-// Create a secure rate limit key
+// Create a secure rate limit key based on session ID and pathname
 async function createRateLimitKey(
-  ip: string,
+  sessionId: string | undefined,
   pathname: string
 ): Promise<string> {
+  // Use a more efficient approach for key generation
+  const secret = env.RATE_LIMIT_SECRET;
+
+  // If no session ID is available, use a special identifier
+  const identifier = sessionId || "anonymous-user";
+  const input = `${identifier}:${pathname}:${secret}`;
+
+  // Use crypto API for hashing
   const encoder = new TextEncoder();
-  const data = encoder.encode(
-    `${ip}:${pathname}:${process.env.RATE_LIMIT_SECRET || ""}`
-  );
+  const data = encoder.encode(input);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  // Convert to hex string
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
   return `rate_limit:${hashHex}`;
+}
+
+// Check if a request should be rate limited
+async function checkRateLimit(
+  sessionId: string | undefined,
+  pathname: string,
+  ip: string
+): Promise<{
+  limited: boolean;
+  headers: Record<string, string>;
+}> {
+  const key = await createRateLimitKey(sessionId, pathname);
+  const count = await redis.get(key);
+
+  logger.debug(
+    `Rate limit check - Session: ${sessionId || "anonymous"}, IP: ${ip}, Path: ${pathname}, Current count: ${count}`
+  );
+
+  const currentCount = count !== null ? parseInt(count as string) : 0;
+  const remaining = Math.max(0, MAX_REQUESTS - currentCount);
+  const resetTime = Math.floor(Date.now() / 1000) + RATE_LIMIT_WINDOW;
+
+  const headers = {
+    "X-RateLimit-Limit": MAX_REQUESTS.toString(),
+    "X-RateLimit-Remaining": remaining.toString(),
+    "X-RateLimit-Reset": resetTime.toString(),
+  };
+
+  // Check if rate limit exceeded
+  if (count !== null && currentCount >= MAX_REQUESTS) {
+    logger.warn(
+      `Rate limit exceeded for ${sessionId ? `Session: ${sessionId}` : "anonymous user"}, Path: ${pathname}`
+    );
+    return {
+      limited: true,
+      headers: {
+        ...headers,
+        "Retry-After": RATE_LIMIT_WINDOW.toString(),
+      },
+    };
+  }
+
+  // Update counter
+  if (count === null) {
+    await redis.setex(key, RATE_LIMIT_WINDOW, 1);
+    logger.debug(`Initialized rate limit counter for ${key}`);
+  } else {
+    await redis.incr(key);
+    logger.debug(`Incremented rate limit counter for ${key}`, {
+      count: currentCount + 1,
+    });
+  }
+
+  return { limited: false, headers };
+}
+
+// Set security headers for all responses
+function setSecurityHeaders(requestHeaders: Headers): Headers {
+  requestHeaders.set("x-middleware-cache", "no-cache");
+  requestHeaders.set("X-Content-Type-Options", "nosniff");
+  requestHeaders.set("X-Frame-Options", "DENY");
+  requestHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  requestHeaders.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()"
+  );
+  requestHeaders.set("X-DNS-Prefetch-Control", "off");
+
+  return requestHeaders;
+}
+
+// Check if a path is for static assets
+function isStaticAsset(pathname: string): boolean {
+  return pathname.startsWith("/_next/") || pathname === "/favicon.ico";
 }
 
 export async function middleware(request: NextRequest) {
@@ -76,19 +155,24 @@ export async function middleware(request: NextRequest) {
     const ip = getSecureClientIP(request);
     const pathname = request.nextUrl.pathname;
 
-    logger.info(`Processing request from ${ip} to ${pathname}`);
+    // Get session ID from cookie for rate limiting
+    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+    const sessionId = sessionCookie?.value;
+
+    logger.info(
+      `Processing request from ${sessionId ? "authenticated user" : "anonymous user"} (IP: ${ip}) to ${pathname}`
+    );
 
     // Skip rate limiting for static assets
-    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico") {
+    if (isStaticAsset(pathname)) {
       logger.debug(`Skipping rate limit for static asset: ${pathname}`);
       return NextResponse.next();
     }
 
-    // Special check for chat-handler route
+    // Handle different API routes
     if (pathname === "/api/chat-handler") {
-      const sessionCookie = request.cookies.get("session");
-      console.log("COOKIE", sessionCookie);
-      if (!sessionCookie) {
+      // Verify session for chat handler
+      if (!sessionId) {
         logger.warn(
           `Missing session cookie for chat-handler request from IP: ${ip}`
         );
@@ -97,18 +181,17 @@ export async function middleware(request: NextRequest) {
           statusText: "Unauthorized - Missing session cookie",
         });
       }
+
       logger.debug("Session cookie verified for chat-handler");
-    }
-    // Allow session route without API key
-    else if (pathname === "/api/auth/session") {
+    } else if (pathname === "/api/auth/session") {
+      // Allow session route without API key
       logger.debug("Allowing session initialization request");
       return NextResponse.next();
-    }
-    // Verify API key for other API routes
-    else if (pathname.startsWith("/api/")) {
+    } else if (pathname.startsWith("/api/")) {
+      // Verify API key for other API routes
       const apiKey = request.headers.get("x-api-key");
 
-      if (!apiKey || apiKey !== process.env.API_KEY) {
+      if (!apiKey || apiKey !== env.API_KEY) {
         logger.warn(
           `Invalid or missing API key for IP: ${ip}, Path: ${pathname}`
         );
@@ -121,53 +204,25 @@ export async function middleware(request: NextRequest) {
       logger.debug("API key verified successfully");
     }
 
-    // Check rate limit
-    const key = await createRateLimitKey(ip, pathname);
-    const count = await redis.get(key);
+    // Apply rate limiting based on session ID
+    const { limited, headers } = await checkRateLimit(sessionId, pathname, ip);
 
-    logger.debug(
-      `Rate limit check - IP: ${ip}, Path: ${pathname}, Current count: ${count}`
-    );
-
-    // Check normal limit
-    if (count !== null && parseInt(count as string) >= MAX_REQUESTS) {
-      logger.warn(`Rate limit exceeded for IP: ${ip}, Path: ${pathname}`);
+    if (limited) {
       return new NextResponse(null, {
         status: 429,
-        headers: {
-          "Retry-After": RATE_LIMIT_WINDOW.toString(),
-          "X-RateLimit-Limit": MAX_REQUESTS.toString(),
-          "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": (
-            Math.floor(Date.now() / 1000) + RATE_LIMIT_WINDOW
-          ).toString(),
-        },
+        headers,
       });
     }
 
-    // Update counter
-    if (count === null) {
-      await redis.setex(key, RATE_LIMIT_WINDOW, 1);
-      logger.debug(`Initialized rate limit counter for ${key}`);
-    } else {
-      await redis.incr(key);
-      logger.debug(`Incremented rate limit counter for ${key}`);
-    }
-
     // Set security headers
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-middleware-cache", "no-cache");
-    requestHeaders.set("X-Content-Type-Options", "nosniff");
-    requestHeaders.set("X-Frame-Options", "DENY");
-    requestHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    // Add Vercel-specific security headers
-    requestHeaders.set(
-      "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=()"
-    );
-    requestHeaders.set("X-DNS-Prefetch-Control", "off");
+    const requestHeaders = setSecurityHeaders(new Headers(request.headers));
 
-    logger.debug("Security headers set successfully");
+    // Add rate limit headers to the response
+    Object.entries(headers).forEach(([key, value]) => {
+      requestHeaders.set(key, value);
+    });
+
+    logger.debug("Request processed successfully");
 
     return NextResponse.next({
       request: {

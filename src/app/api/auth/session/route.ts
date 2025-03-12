@@ -1,30 +1,24 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
+
+const SESSION_COOKIE = "web-chat-session-id";
+const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export async function GET() {
   const cookieStore = await cookies();
+  let sessionId = cookieStore.get(SESSION_COOKIE)?.value;
 
-  // Check if session already exists
-  if (cookieStore.get("session")) {
-    return NextResponse.json({ status: "existing session" });
+  if (!sessionId) {
+    sessionId = uuidv4();
+    // Set cookie with 7 day expiry
+    cookieStore.set(SESSION_COOKIE, sessionId, {
+      expires: new Date(Date.now() + SESSION_DURATION),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+    });
   }
 
-  // Create a new session ID
-  const sessionId = crypto.randomBytes(32).toString("hex");
-
-  // Set the cookie
-  const response = NextResponse.json({ status: "session created" });
-  response.cookies.set({
-    name: "session",
-    value: sessionId,
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "strict",
-    path: "/",
-    // 7 days expiry
-    maxAge: 7 * 24 * 60 * 60,
-  });
-
-  return response;
+  return Response.json({ sessionId });
 }

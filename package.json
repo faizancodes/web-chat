@@ -7,13 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "format:fix": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
     "turbo-ignore": "exit 0"
   },
   "dependencies": {
     "@braintree/sanitize-url": "^7.1.0",
     "@google/generative-ai": "^0.21.0",
     "@sparticuz/chromium-min": "^131.0.1",
+    "@types/uuid": "^10.0.0",
     "@upstash/redis": "^1.34.3",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
@@ -34,6 +35,7 @@
     "react-syntax-highlighter": "^15.6.1",
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.0",
+    "uuid": "^11.1.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

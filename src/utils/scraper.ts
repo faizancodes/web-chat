@@ -4,6 +4,7 @@ import { Redis } from "@upstash/redis";
 import { Logger } from "./logger";
 import { Browser as CoreBrowser } from "puppeteer-core";
 import { getPuppeteerOptions } from "./puppeteerSetup";
+import { env } from "@/config/env";
 
 const logger = new Logger("scraper");
 
@@ -13,8 +14,8 @@ export const urlPattern =
 
 // Initialize Redis client with error handling
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL || "",
-  token: process.env.UPSTASH_REDIS_REST_TOKEN || "",
+  url: env.UPSTASH_REDIS_REST_URL,
+  token: env.UPSTASH_REDIS_REST_TOKEN,
 });
 
 // Cache TTL in seconds (7 days)
