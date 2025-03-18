@@ -1,20 +1,10 @@
-const handleRateLimit = (response: Response) => {
-    const retryAfter = parseInt(response.headers.get("retry-after") || "20");
-    setRetryAfter(retryAfter);
-    setIsLoading(false);
-    setRateLimitError(true);
-  };
+  const [parseError, setParseError] = useState<string | null>(null);
 
-  // ...
+...      
+} catch (e) {
+  console.error("Error parsing SSE message:", e);
+  setParseError("Failed to parse server response.");
+}
 
-  if (response.status === 429) {
-    handleRateLimit(response);
-    return;
-  }
-
-  // ...
-
-  if (response.status === 429) {
-    handleRateLimit(response);
-    return;
-  }
+//In ClientPage.tsx:
+{parseError && <div>{parseError}</div>}
