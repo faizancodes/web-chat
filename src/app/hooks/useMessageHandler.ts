@@ -1,12 +1,20 @@
-const reducer = (state: Message[], action: { type: 'add', message: Message }) => {
-  switch (action.type) {
-    case 'add':
-      return [...state, action.message];
-    default:
-      return state;
+const handleRateLimit = (response: Response) => {
+    const retryAfter = parseInt(response.headers.get("retry-after") || "20");
+    setRetryAfter(retryAfter);
+    setIsLoading(false);
+    setRateLimitError(true);
+  };
+
+  // ...
+
+  if (response.status === 429) {
+    handleRateLimit(response);
+    return;
   }
-};
 
-const [messages, dispatch] = useReducer(reducer, initialMessages);
+  // ...
 
-dispatch({ type: 'add', message: userMessage });
+  if (response.status === 429) {
+    handleRateLimit(response);
+    return;
+  }
