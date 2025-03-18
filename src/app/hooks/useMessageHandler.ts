@@ -1,10 +1,9 @@
-  const [parseError, setParseError] = useState<string | null>(null);
-
-...      
-} catch (e) {
-  console.error("Error parsing SSE message:", e);
-  setParseError("Failed to parse server response.");
-}
-
-//In ClientPage.tsx:
-{parseError && <div>{parseError}</div>}
+      let threads: ChatThread[] = [];
+      try {
+        threads = JSON.parse(
+          localStorage.getItem("chatThreads") || "[]"
+        ) as ChatThread[];
+      } catch (error) {
+        console.error("Error parsing chat threads from local storage:", error);
+        threads = [];
+      }
